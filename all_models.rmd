@@ -24,26 +24,11 @@ knitr::opts_chunk$set(echo = TRUE)
 ```{r load in MS Data}
 
 setwd("~/dev/r/greer_models")
+source('load_data.R')
+loaded_data <- load_data("./data/gene_count_lazar_1000.csv", "./data/meta_data_lazar.csv")
+meta_MS <- loaded_data$meta_MS
+matrix_ms_predrop <- loaded_data$matrix_ms_predrop
 
-ms_counts <- read_csv("./data/gene_count_lazar_1000.csv")
-counts <- ms_counts %>%
-  as.data.frame() %>%
-  column_to_rownames(var = "...1")
-
-#inport meta data
-meta_MS <- read_csv("./data/meta_data_lazar.csv")
-
-#drop counts that aren't in MS Meta Data 
-# Get the column names that match the values in Dataset 2
-columns_to_keep <- meta_MS$study_id
-
-# Subset Dataset 1 to include only matching columns
-subset_data_ms_drop<- counts[, colnames(counts) %in% columns_to_keep]
-
-matrix_ms_predrop <- as.matrix(subset_data_ms_drop)
-
-#Load in protein coding and gene info tsv form working directory
-#pc_genes <-read.delim("~/biomart_protein_coding_genes_withgeneinfo.tsv", stringsAsFactors = FALSE)
 ```
 
 ```{r combine ms and ns matrix, and drop zero genes}

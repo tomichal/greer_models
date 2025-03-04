@@ -17,7 +17,7 @@ load_data <- function(counts_filepath, metadata_filepath) {
   # pc_genes <-read.delim("~/biomart_protein_coding_genes_withgeneinfo.tsv", stringsAsFactors = FALSE)
 
   list(
-    counts = counts,
+    # counts = counts,
     meta_MS = meta_MS,
     matrix_ms_predrop = matrix_ms_predrop
     # pc_genes = pc_genes
