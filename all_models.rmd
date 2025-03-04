@@ -47,89 +47,112 @@ se_combo_drop_nieve <- summarized_experiment(matrix_combo_ms_ns_drop, meta_MS)
 
 ```{r import run_model function}
 source("run_model.R")
-
+```
 # Model definitions
 ## Before modifying the Y data
+```{r Before modifying the Y data}
 batch_1 <- list(
   # Crude Model (Model 1, univariate age)
   list(
+    name = "1",
     title = "Cohort + Age",
+    Y = se_combo_drop_nieve,
     xFormula = (~se_combo_drop_nieve$cohort + se_combo_drop_nieve$age_at_csf),
     maxIterOptimize = 400
   ),
   # Model2 (univariate batch)
   list(
+    name = "2",
     title = "Cohort + Batch",
+    Y = se_combo_drop_nieve,
     xFormula = (~se_combo_drop_nieve$cohort + se_combo_drop_nieve$batch),
     maxIterOptimize = 400
   ),
   #Model 3 (univariate non-zero gene count)
   list(
+    name = "3",
     title = "Cohort +Non Zero Gene Counts",
+    Y = se_combo_drop_nieve,
     xFormula = (~se_combo_drop_nieve$cohort + se_combo_drop_nieve$Quartilenonzero),
     maxIterOptimize = 25
   ),
   #Model 4 univariate totalcounts
   list(
+    name = "4",
     title = "Cohort + Total Gene Counts",
+    Y = se_combo_drop_nieve,
     xFormula = (~se_combo_drop_nieve$cohort + se_combo_drop_nieve$Quartiletotal),
     maxIterOptimize = 400
   ),
   #Model 5 (nonzero and totaltranscripts)
   list(
+    name = "5",
     title = "Cohort + Non Zero Gene Counts + Total Gene Counts",
+    Y = se_combo_drop_nieve,
     xFormula = (~se_combo_drop_nieve$cohort +
       se_combo_drop_nieve$Quartiletotal +
       se_combo_drop_nieve$Quartilenonzero),
     maxIterOptimize = 400
+  ),
+  #Model 6 (nonzero and totaltranscripts and batch)
+  list(
+    name = "6",
+    title = "Cohort + Batch + Non Zero Gene Counts + Total Gene Counts + Gene Level",
+    Y = se_combo_drop_nieve,
+    xFormula = (~se_combo_drop_nieve$cohort +
+      se_combo_drop_nieve$Quartiletotal +
+      se_combo_drop_nieve$Quartilenonzero +
+      se_combo_drop_nieve$batch),
+    maxIterOptimize = 400
+  ),
+  #Model 11 (freezer time)
+  list(
+    name = "11",
+    title = "Cohort + Pleocytosis",
+    Y = se_combo_drop_nieve,
+    xFormula = (~se_combo_drop_nieve$cohort + se_combo_drop_nieve$Quartilefreezer),
+    maxIterOptimize = 400
+  ),
+  #Model 12 (pleocytosis)
+  list(
+    name = "12",
+    title = "Cohort + Quartiles of Freezer Time",
+    Y = se_combo_drop_nieve,
+    xFormula = (~se_combo_drop_nieve$cohort + se_combo_drop_nieve$pleocytosis),
+    maxIterOptimize = 400
+  ),
+  #Model 14 (enhancing)
+  list(
+    name = "14",
+    title = "Cohort + Enhancing Lesino within 30 days",
+    Y = se_combo_drop_nieve,
+    xFormula = (~se_combo_drop_nieve$cohort + se_combo_drop_nieve$enhancing),
+    maxIterOptimize = 400
   )
-
 )
 ```
 
-#Model 11 (freezer time)
-```{r model 11 univariate freezer time}
-result_11 <- run_model(Y = se_combo_drop_nieve, xFormula = (~se_combo_drop_nieve$cohort + se_combo_drop_nieve$Quartilefreezer))
-```
-
-#Model 12 (pleocytosis)
-```{r model 12 univariate pleocytosis}
-result_12 <- run_model(Y = se_combo_drop_nieve, xFormula = (~se_combo_drop_nieve$cohort + se_combo_drop_nieve$pleocytosis))
-```
-
-#Model 14 (enhancing)
-```{r model 14 enhancing}
-result_14 <- run_model(Y = se_combo_drop_nieve, xFormula = (~se_combo_drop_nieve$cohort + se_combo_drop_nieve$enhancing))
-```
-
-#Model 6 (nonzero and totaltranscripts and batch)
-```{r model 6 nonzero, totaltranscripts and batch}
-result_6 <- run_model(Y = se_combo_drop_nieve, xFormula = (~se_combo_drop_nieve$cohort +
-  se_combo_drop_nieve$Quartiletotal +
-  se_combo_drop_nieve$Quartilenonzero +
-  se_combo_drop_nieve$batch))
-```
-
-
-#Model 7 adding gene level data
 ```{r model 7 adding gene level data}
+se_combo_drop_nieve_with_added_data <- se_combo_drop_nieve
+
 mart <- useMart("ensembl")
 mart <- useDataset("hsapiens_gene_ensembl", mart = mart)
 
 bm <- getBM(
   attributes = c('hgnc_symbol', 'start_position', 'end_position', 'percentage_gene_gc_content'),
   filters = 'hgnc_symbol',
-  values = rownames(se_combo_drop_nieve),
+  values = rownames(se_combo_drop_nieve_with_added_data),
   mart = mart
 )
 bm$length <- bm$end_position - bm$start_position
 len <- tapply(bm$length, bm$hgnc_symbol, mean)
-len <- len[rownames(se_combo_drop_nieve)]
+len <- len[rownames(se_combo_drop_nieve_with_added_data)]
 gcc <- tapply(bm$percentage_gene_gc_content, bm$hgnc_symbol, mean)
-gcc <- gcc[rownames(se_combo_drop_nieve)]
+gcc <- gcc[rownames(se_combo_drop_nieve_with_added_data)]
 
-rowData(se_combo_drop_nieve) <- data.frame(gccontent = gcc, length = len)
+rowData(se_combo_drop_nieve_with_added_data) <- data.frame(gccontent = gcc, length = len)
 
+#Model 7 adding gene level data
 result_7 <- run_model(
   Y = se_combo_drop_nieve,
   xFormula = (
@@ -194,8 +217,12 @@ row_names <- c("Models", "ZI AIC", "ZI -ll", "ZI-df", "NB AIC", "NB -ll", "NB df
 rownames(fit_df) <- row_names
 
 for (i in seq_along(batch_1)) {
-  result <- run_model(Y = se_combo_drop_nieve, xFormula = batch_1[[i]]$xFormula)
-  fit_df[[paste0("model_", i, "_combo_drop_nieve")]] <- c(
+  result <- run_model(
+    Y = batch_1[[i]]$Y,
+    xFormula = batch_1[[i]]$xFormula,
+    maxIterOptimize = batch_1[[i]]$maxIterOptimize
+  )
+  fit_df[[paste0("model_", batch_1[[i]]$name, "_combo_drop_nieve")]] <- c(
     batch_1[[i]]$title,
     result$ZI_aic,
     result$ZI_ll,
@@ -206,15 +233,7 @@ for (i in seq_along(batch_1)) {
   )
 }
 
-model_6_combo_drop_nieve <- c(
-  "Cohort + Batch + Non Zero Gene Counts + Total Gene Counts + Gene Level",
-  result_6$ZI_aic,
-  result_6$ZI_ll,
-  result_6$ZI_df,
-  result_6$NB_aic,
-  result_6$NB_ll,
-  result_6$NB_df
-)
+
 model_7_combo_drop_nieve <- c(
   "Cohort + Non Zero Gene Counts + Total Gene Counts + Gene Level",
   result_7$ZI_aic,
@@ -251,33 +270,7 @@ model_10_combo_drop_nieve <- c(
   result_10$NB_ll,
   result_10$NB_df
 )
-model_11_combo_drop_nieve <- c(
-  "Cohort + Pleocytosis",
-  result_11$ZI_aic,
-  result_11$ZI_ll,
-  result_11$ZI_df,
-  result_11$NB_aic,
-  result_11$NB_ll,
-  result_11$NB_df
-)
-model_12_combo_drop_nieve <- c(
-  "Cohort + Quartiles of Freezer Time",
-  result_12$ZI_aic,
-  result_12$ZI_ll,
-  result_12$ZI_df,
-  result_12$NB_aic,
-  result_12$NB_ll,
-  result_12$NB_df
-)
-model_14_combo_drop_nieve <- c(
-  "Cohort + Enhancing Lesino within 30 days",
-  result_14$ZI_aic,
-  result_14$ZI_ll,
-  result_14$ZI_df,
-  result_14$NB_aic,
-  result_14$NB_ll,
-  result_14$NB_df
-)
+
 
 fit_df$model1_combo_drop_nieve <- model_1_combo_drop_nieve
 fit_df$model2_combo_drop_nieve <- model_2_combo_drop_nieve
