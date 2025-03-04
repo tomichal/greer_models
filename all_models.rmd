@@ -51,12 +51,12 @@ source("run_model.R")
 
 #Crude Model (Model 1, univariate age)
 ```{r model 1 univariate age}
-result_1 <- run_model(yData = se_combo_drop_nieve, xDataFormula = (~se_combo_drop_nieve$cohort + se_combo_drop_nieve$age_at_csf))
+result_1 <- run_model(yData = se_combo_drop_nieve, xDataFormula = (~se_combo_drop_nieve$cohort + se_combo_drop_nieve$age_at_csf), maxIterOptimize = 400)
 ```
 
 #Model2 (univariate batch)
 ```{r model 2 (univariate batch)}
-result_2 <- run_model(yData = se_combo_drop_nieve, xDataFormula = (~se_combo_drop_nieve$cohort + se_combo_drop_nieve$batch))
+result_2 <- run_model(yData = se_combo_drop_nieve, xDataFormula = (~se_combo_drop_nieve$cohort + se_combo_drop_nieve$batch), maxIterOptimize = 400)
 ```
 
 #Model 3 (univariate non-zero gene count)

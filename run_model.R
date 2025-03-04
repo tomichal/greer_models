@@ -1,6 +1,6 @@
-run_model <- function(yData, xDataFormula) {
+run_model <- function(yData, xDataFormula, maxIterOptimize = 25) {
 
-  run_zinbFit <- function(yData, xDataFormula, zeroInflation) {
+  run_zinbFit <- function(zeroInflation) {
     zinbFit(
       yData,
       K = 2,
@@ -9,7 +9,7 @@ run_model <- function(yData, xDataFormula) {
         data = colData(se_combo_drop_nieve)
       ),
       BPPARAM = BiocParallel::SerialParam(),
-      maxiter.optimize = 400,
+      maxiter.optimize = maxIterOptimize,
       verbose = FALSE,
       zeroinflation = zeroInflation
     )
