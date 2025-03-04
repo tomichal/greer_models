@@ -47,26 +47,44 @@ se_combo_drop_nieve <- summarized_experiment(matrix_combo_ms_ns_drop, meta_MS)
 
 ```{r import run_model function}
 source("run_model.R")
-```
 
-#Crude Model (Model 1, univariate age)
-```{r model 1 univariate age}
-result_1 <- run_model(Y = se_combo_drop_nieve, xFormula = (~se_combo_drop_nieve$cohort + se_combo_drop_nieve$age_at_csf))
-```
+# Model definitions
+## Before modifying the Y data
+batch_1 <- list(
+  # Crude Model (Model 1, univariate age)
+  list(
+    title = "Cohort + Age",
+    xFormula = (~se_combo_drop_nieve$cohort + se_combo_drop_nieve$age_at_csf),
+    maxIterOptimize = 400
+  ),
+  # Model2 (univariate batch)
+  list(
+    title = "Cohort + Batch",
+    xFormula = (~se_combo_drop_nieve$cohort + se_combo_drop_nieve$batch),
+    maxIterOptimize = 400
+  ),
+  #Model 3 (univariate non-zero gene count)
+  list(
+    title = "Cohort +Non Zero Gene Counts",
+    xFormula = (~se_combo_drop_nieve$cohort + se_combo_drop_nieve$Quartilenonzero),
+    maxIterOptimize = 25
+  ),
+  #Model 4 univariate totalcounts
+  list(
+    title = "Cohort + Total Gene Counts",
+    xFormula = (~se_combo_drop_nieve$cohort + se_combo_drop_nieve$Quartiletotal),
+    maxIterOptimize = 400
+  ),
+  #Model 5 (nonzero and totaltranscripts)
+  list(
+    title = "Cohort + Non Zero Gene Counts + Total Gene Counts",
+    xFormula = (~se_combo_drop_nieve$cohort +
+      se_combo_drop_nieve$Quartiletotal +
+      se_combo_drop_nieve$Quartilenonzero),
+    maxIterOptimize = 400
+  )
 
-#Model2 (univariate batch)
-```{r model 2 (univariate batch)}
-result_2 <- run_model(Y = se_combo_drop_nieve, xFormula = (~se_combo_drop_nieve$cohort + se_combo_drop_nieve$batch))
-```
-
-#Model 3 (univariate non-zero gene count)
-```{r model 3 (univariate non-zero gene count)}
-result_3 <- run_model(Y = se_combo_drop_nieve, xFormula = (~se_combo_drop_nieve$cohort + se_combo_drop_nieve$Quartilenonzero), maxIterOptimize = 25)
-```
-
-#Model 4 univariate totalcounts
-```{r model 4 univariate totalcounts}
-result_4 <- run_model(Y = se_combo_drop_nieve, xFormula = (~se_combo_drop_nieve$cohort + se_combo_drop_nieve$Quartiletotal))
+)
 ```
 
 #Model 11 (freezer time)
@@ -82,13 +100,6 @@ result_12 <- run_model(Y = se_combo_drop_nieve, xFormula = (~se_combo_drop_nieve
 #Model 14 (enhancing)
 ```{r model 14 enhancing}
 result_14 <- run_model(Y = se_combo_drop_nieve, xFormula = (~se_combo_drop_nieve$cohort + se_combo_drop_nieve$enhancing))
-```
-
-#Model 5 (nonzero and totaltranscripts)
-```{r model 5 nonzero and totaltranscripts}
-result_5 <- run_model(Y = se_combo_drop_nieve, xFormula = (~se_combo_drop_nieve$cohort +
-  se_combo_drop_nieve$Quartiletotal +
-  se_combo_drop_nieve$Quartilenonzero))
 ```
 
 #Model 6 (nonzero and totaltranscripts and batch)
@@ -182,52 +193,19 @@ fit_df <- data.frame(matrix(ncol = 0, nrow = num_rows))
 row_names <- c("Models", "ZI AIC", "ZI -ll", "ZI-df", "NB AIC", "NB -ll", "NB df")
 rownames(fit_df) <- row_names
 
-#First cell "" can be labeled anything but I tried to put what each mother contained 
-model_1_combo_drop_nieve <- c(
-  "Cohort + Age",
-  result_1$ZI_aic,
-  result_1$ZI_ll,
-  result_1$ZI_df,
-  result_1$NB_aic,
-  result_1$NB_ll,
-  result_1$NB_df
-)
-model_2_combo_drop_nieve <- c(
-  "Cohort + Batch",
-  result_2$ZI_aic,
-  result_2$ZI_ll,
-  result_2$ZI_df,
-  result_2$NB_aic,
-  result_2$NB_ll,
-  result_2$NB_df
-)
-model_3_combo_drop_nieve <- c(
-  "Cohort +Non Zero Gene Counts",
-  result_3$ZI_aic,
-  result_3$ZI_ll,
-  result_3$ZI_df,
-  result_3$NB_aic,
-  result_3$NB_ll,
-  result_3$NB_df
-)
-model_4_combo_drop_nieve <- c(
-  "Cohort + Total Gene Counts",
-  result_4$ZI_aic,
-  result_4$ZI_ll,
-  result_4$ZI_df,
-  result_4$NB_aic,
-  result_4$NB_ll,
-  result_4$NB_df
-)
-model_5_combo_drop_nieve <- c(
-  "Cohort + Non Zero Gene Counts + Total Gene Counts",
-  result_5$ZI_aic,
-  result_5$ZI_ll,
-  result_5$ZI_df,
-  result_5$NB_aic,
-  result_5$NB_ll,
-  result_5$NB_df
-)
+for (i in seq_along(batch_1)) {
+  result <- run_model(Y = se_combo_drop_nieve, xFormula = batch_1[[i]]$xFormula)
+  fit_df[[paste0("model_", i, "_combo_drop_nieve")]] <- c(
+    batch_1[[i]]$title,
+    result$ZI_aic,
+    result$ZI_ll,
+    result$ZI_df,
+    result$NB_aic,
+    result$NB_ll,
+    result$NB_df
+  )
+}
+
 model_6_combo_drop_nieve <- c(
   "Cohort + Batch + Non Zero Gene Counts + Total Gene Counts + Gene Level",
   result_6$ZI_aic,
