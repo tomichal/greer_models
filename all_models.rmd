@@ -24,7 +24,10 @@ knitr::opts_chunk$set(echo = TRUE)
 ```{r load in MS Data}
 setwd("~/dev/r/greer_models")
 source("load_data.R")
-loaded_data <- load_data("./data/gene_count_lazar_1000.csv", "./data/meta_data_lazar.csv")
+loaded_data <- load_data(
+  "./data/gene_count_lazar_1000.csv",
+  "./data/meta_data_lazar.csv"
+)
 meta_MS <- loaded_data$meta_MS
 matrix_ms_predrop <- loaded_data$matrix_ms_predrop
 ```
@@ -42,100 +45,18 @@ source("summarized_experiment.R")
 se_combo_drop_nieve <- summarized_experiment(matrix_combo_ms_ns_drop, meta_MS)
 ```
 
+```{r import run_model function}
+source("run_model.R")
+```
+
 #Crude Model (Model 1, univariate age)
 ```{r model 1 univariate age}
-#ZINB
-zinb_nieve_cohort_1 <- zinbFit(
-  se_combo_drop_nieve,
-  K = 2,
-  X = model.matrix(
-    ~se_combo_drop_nieve$cohort + se_combo_drop_nieve$age_at_csf,
-    data = colData(se_combo_drop_nieve)
-  ),
-  BPPARAM = BiocParallel::SerialParam(),
-  maxiter.optimize = 400,
-  verbose = FALSE,
-  zeroinflation = TRUE
-)
-
-#storing ll
-x <- zinbSim(zinb_nieve_cohort_1)
-ZI_ll_1 <- loglik(zinb_nieve_cohort_1, x$counts)
-#storing aic 
-ZI_aic_1 <- zinbAIC(zinb_nieve_cohort_1, t(assay(se_combo_drop_nieve)))
-#storing df
-ZI_df_1 <- nParams(zinb_nieve_cohort_1)
-
-#neg binomial crude mdoel 
-nb_nieve_cohort_1 <- zinbFit(
-  se_combo_drop_nieve,
-  K = 2,
-  X = model.matrix(
-    ~se_combo_drop_nieve$cohort + se_combo_drop_nieve$age_at_csf,
-    data = colData(se_combo_drop_nieve)
-  ),
-  BPPARAM = BiocParallel::SerialParam(),
-  maxiter.optimize = 400,
-  verbose = FALSE,
-  zeroinflation = FALSE
-)
-
-#storing ll
-x <- zinbSim(nb_nieve_cohort_1)
-NB_ll_1 <- loglik(nb_nieve_cohort_1, x$counts)
-#storing aic 
-NB_aic_1 <- zinbAIC(nb_nieve_cohort_1, t(assay(se_combo_drop_nieve)))
-#storing df
-NB_df_1 <- nParams(nb_nieve_cohort_1)
-
+result_1 <- run_model(yData = se_combo_drop_nieve, xDataFormula = (~se_combo_drop_nieve$cohort + se_combo_drop_nieve$age_at_csf))
 ```
+
 #Model2 (univariate batch)
 ```{r model 2 (univariate batch)}
-#ZINB
-zinb_nieve_cohort_2 <- zinbFit(
-  se_combo_drop_nieve,
-  K = 2,
-  X = model.matrix(
-    ~se_combo_drop_nieve$cohort + se_combo_drop_nieve$batch,
-    data = colData(se_combo_drop_nieve)
-  ),
-  BPPARAM = BiocParallel::SerialParam(),
-  maxiter.optimize = 400,
-  zeroinflation = TRUE
-)
-
-#storing ll
-x <- zinbSim(zinb_nieve_cohort_2)
-ZI_ll_2 <- loglik(zinb_nieve_cohort_2, x$counts)
-#storing aic 
-ZI_aic_2 <- zinbAIC(zinb_nieve_cohort_2, t(assay(se_combo_drop_nieve)))
-#storing df
-ZI_df_2 <- nParams(zinb_nieve_cohort_2)
-
-
-#neg binominal
-nb_nieve_cohort_2 <- zinbFit(
-  se_combo_drop_nieve,
-  K = 2,
-  X = model.matrix(
-    ~se_combo_drop_nieve$cohort + se_combo_drop_nieve$batch,
-    data = colData(se_combo_drop_nieve)
-  ),
-  BPPARAM = BiocParallel::SerialParam(),
-  maxiter.optimize = 400,
-  zeroinflation = FALSE
-)
-
-zinbAIC(nb_nieve_cohort_2, t(assay(se_combo_drop_nieve)))
-
-#storing ll
-x <- zinbSim(nb_nieve_cohort_2)
-NB_ll_2 <- loglik(nb_nieve_cohort_2, x$counts)
-#storing aic 
-NB_aic_2 <- zinbAIC(nb_nieve_cohort_2, t(assay(se_combo_drop_nieve)))
-#storing df
-NB_df_2 <- nParams(nb_nieve_cohort_2)
-
+result_2 <- run_model(yData = se_combo_drop_nieve, xDataFormula = (~se_combo_drop_nieve$cohort + se_combo_drop_nieve$batch))
 ```
 
 #Model 3 (univariate non-zero gene count)
@@ -517,8 +438,24 @@ row_names <- c("Models", "ZI AIC", "ZI -ll", "ZI-df", "NB AIC", "NB -ll", "NB df
 rownames(fit_df) <- row_names
 
 #First cell "" can be labeled anything but I tried to put what each mother contained 
-model_1_combo_drop_nieve <- c("Cohort + Age", ZI_aic_1, ZI_ll_1, ZI_df_1, NB_aic_1, NB_ll_1, NB_df_1)
-model_2_combo_drop_nieve <- c("Cohort + Batch", ZI_aic_2, ZI_ll_2, ZI_df_2, NB_aic_2, NB_ll_2, NB_df_2)
+model_1_combo_drop_nieve <- c(
+        "Cohort + Age",
+        result_1$ZI_aic,
+        result_1$ZI_ll,
+        result_1$ZI_df,
+        result_1$NB_aic,
+        result_1$NB_ll,
+        result_1$NB_df
+)
+model_2_combo_drop_nieve <- c(
+        "Cohort + Batch",
+        result_2$ZI_aic,
+        result_2$ZI_ll,
+        result_2$ZI_df,
+        result_2$NB_aic,
+        result_2$NB_ll,
+        result_2$NB_df
+)
 model_3_combo_drop_nieve <- c("Cohort +Non Zero Gene Counts", ZI_aic_3, ZI_ll_3, ZI_df_3, NB_aic_3, NB_ll_3, NB_df_3)
 model_4_combo_drop_nieve <- c("Cohort + Total Gene Counts", ZI_aic_4, ZI_ll_4, ZI_df_4, NB_aic_4, NB_ll_4, NB_df_4)
 model_5_combo_drop_nieve <- c("Cohort + Non Zero Gene Counts + Total Gene Counts", ZI_aic_5, ZI_ll_5, ZI_df_5, NB_aic_5, NB_ll_5, NB_df_5)
@@ -560,7 +497,7 @@ rownames(result_df_combo_drop_nieve_cohort)[1] <- "Difference in LL"
 # Bind the new row (differce in the negative 2 ll) to the original DataFrame
 combo_ModelCompare_drop_nieve_cohort <- rbind(fit_df, result_df_combo_drop_nieve_cohort)
 
-write.csv(combo_ModelCompare_drop_nieve_cohort, file = "~/NSvsMS_24_12_30/model_fiting_table_combo_drop_nieve_cohort.csv", row.names = TRUE)
+write.csv(combo_ModelCompare_drop_nieve_cohort, file = "./NSvsMS_24_12_30/model_fiting_table_combo_drop_nieve_cohort_NEW.csv", row.names = TRUE)
 
 ```
 
