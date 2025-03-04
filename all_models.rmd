@@ -23,15 +23,15 @@ knitr::opts_chunk$set(echo = TRUE)
 
 ```{r load in MS Data}
 
-setwd("~/")
+setwd("~/dev/r/greer_models")
 
-ms_counts <- read_csv("~/gene_count_lazar.csv")
+ms_counts <- read_csv("./data/gene_count_lazar_1000.csv")
 counts <- ms_counts %>%
   as.data.frame() %>%
   column_to_rownames(var = "...1")
 
 #inport meta data
-meta_MS <- read_csv("~meta_data_lazar.csv")
+meta_MS <- read_csv("/Users/nihau/dev/r/greer_models/data/meta_data_lazar.csv")
 
 #drop counts that aren't in MS Meta Data 
 # Get the column names that match the values in Dataset 2
@@ -46,7 +46,7 @@ matrix_ms_predrop <- as.matrix(subset_data_ms_drop)
 #pc_genes <-read.delim("~/biomart_protein_coding_genes_withgeneinfo.tsv", stringsAsFactors = FALSE)
 ```
 
-``` {r combine ms and ns matrix, and drop zero genes}
+```{r combine ms and ns matrix, and drop zero genes}
 
 #dropping zero genes
 row_sums_combo <- rowSums(matrix_ms_predrop)
@@ -138,8 +138,6 @@ se_combo_drop_nieve$Quartilefreezer <- sapply(se_combo_drop_nieve$coll_to_seq, c
 
 #Crude Model (Model 1, univariate age)
 ```{r model 1 univariate age}
-library(zinbwave)
-
 #ZINB
 zinb_nieve_cohort_1<- zinbFit(se_combo_drop_nieve, K = 2, X=model.matrix(~se_combo_drop_nieve$cohort + se_combo_drop_nieve$age_at_csf, data=colData(se_combo_drop_nieve) ), BPPARAM=BiocParallel::SerialParam(), maxiter.optimize = 400, verbose = FALSE, zeroinflation = TRUE)
 
