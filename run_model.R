@@ -1,17 +1,17 @@
-run_model <- function(yData, xDataFormula, maxIterOptimize = 400, V = NULL) {
+run_model <- function(Y, xFormula, maxIterOptimize = 400, V = NULL) {
 
   run_zinbFit <- function(zeroInflation) {
     zinbFit(
-      yData,
+      Y,
       K = 2,
       X = if (is.null(V)) {
         model.matrix(
-          xDataFormula,
+          xFormula,
           data = colData(se_combo_drop_nieve)
         )
       } else {
         model.matrix(
-          xDataFormula,
+          xFormula,
           data = colData(se_combo_drop_nieve),
           V = V
         )

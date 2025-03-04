@@ -51,47 +51,47 @@ source("run_model.R")
 
 #Crude Model (Model 1, univariate age)
 ```{r model 1 univariate age}
-result_1 <- run_model(yData = se_combo_drop_nieve, xDataFormula = (~se_combo_drop_nieve$cohort + se_combo_drop_nieve$age_at_csf))
+result_1 <- run_model(Y = se_combo_drop_nieve, xFormula = (~se_combo_drop_nieve$cohort + se_combo_drop_nieve$age_at_csf))
 ```
 
 #Model2 (univariate batch)
 ```{r model 2 (univariate batch)}
-result_2 <- run_model(yData = se_combo_drop_nieve, xDataFormula = (~se_combo_drop_nieve$cohort + se_combo_drop_nieve$batch))
+result_2 <- run_model(Y = se_combo_drop_nieve, xFormula = (~se_combo_drop_nieve$cohort + se_combo_drop_nieve$batch))
 ```
 
 #Model 3 (univariate non-zero gene count)
 ```{r model 3 (univariate non-zero gene count)}
-result_3 <- run_model(yData = se_combo_drop_nieve, xDataFormula = (~se_combo_drop_nieve$cohort + se_combo_drop_nieve$Quartilenonzero), maxIterOptimize = 25)
+result_3 <- run_model(Y = se_combo_drop_nieve, xFormula = (~se_combo_drop_nieve$cohort + se_combo_drop_nieve$Quartilenonzero), maxIterOptimize = 25)
 ```
 
 #Model 4 univariate totalcounts
 ```{r model 4 univariate totalcounts}
-result_4 <- run_model(yData = se_combo_drop_nieve, xDataFormula = (~se_combo_drop_nieve$cohort + se_combo_drop_nieve$Quartiletotal))
+result_4 <- run_model(Y = se_combo_drop_nieve, xFormula = (~se_combo_drop_nieve$cohort + se_combo_drop_nieve$Quartiletotal))
 ```
 
 #Model 11 (freezer time)
 ```{r model 11 univariate freezer time}
-result_11 <- run_model(yData = se_combo_drop_nieve, xDataFormula = (~se_combo_drop_nieve$cohort + se_combo_drop_nieve$Quartilefreezer))
+result_11 <- run_model(Y = se_combo_drop_nieve, xFormula = (~se_combo_drop_nieve$cohort + se_combo_drop_nieve$Quartilefreezer))
 ```
 
 #Model 12 (pleocytosis)
 ```{r model 12 univariate pleocytosis}
-result_12 <- run_model(yData = se_combo_drop_nieve, xDataFormula = (~se_combo_drop_nieve$cohort + se_combo_drop_nieve$pleocytosis))
+result_12 <- run_model(Y = se_combo_drop_nieve, xFormula = (~se_combo_drop_nieve$cohort + se_combo_drop_nieve$pleocytosis))
 ```
 
 #Model 14 (enhancing)
 ```{r model 14 enhancing}
-result_14 <- run_model(yData = se_combo_drop_nieve, xDataFormula = (~se_combo_drop_nieve$cohort + se_combo_drop_nieve$enhancing))
+result_14 <- run_model(Y = se_combo_drop_nieve, xFormula = (~se_combo_drop_nieve$cohort + se_combo_drop_nieve$enhancing))
 ```
 
 #Model 5 (nonzero and totaltranscripts)
 ```{r model 5 nonzero and totaltranscripts}
-result_5 <- run_model(yData = se_combo_drop_nieve, xDataFormula = (~se_combo_drop_nieve$cohort + se_combo_drop_nieve$Quartiletotal + se_combo_drop_nieve$Quartilenonzero))
+result_5 <- run_model(Y = se_combo_drop_nieve, xFormula = (~se_combo_drop_nieve$cohort + se_combo_drop_nieve$Quartiletotal + se_combo_drop_nieve$Quartilenonzero))
 ```
 
 #Model 6 (nonzero and totaltranscripts and batch)
 ```{r model 6 nonzero, totaltranscripts and batch}
-result_6 <- run_model(yData = se_combo_drop_nieve, xDataFormula = (~se_combo_drop_nieve$cohort + se_combo_drop_nieve$Quartiletotal + se_combo_drop_nieve$Quartilenonzero + se_combo_drop_nieve$batch))
+result_6 <- run_model(Y = se_combo_drop_nieve, xFormula = (~se_combo_drop_nieve$cohort + se_combo_drop_nieve$Quartiletotal + se_combo_drop_nieve$Quartilenonzero + se_combo_drop_nieve$batch))
 ```
 
 
