@@ -147,73 +147,34 @@ result_8 <- run_model(
 ```
 #Model 9 adding gender and age without gene level data
 ```{r model 9 }
-#ZINB
-zinb_nieve_cohort9 <- zinbFit(se_combo_drop_nieve, K = 2, X = model.matrix(~se_combo_drop_nieve$cohort +
-  se_combo_drop_nieve$sex +
-  se_combo_drop_nieve$race +
-  se_combo_drop_nieve$Quartilenonzero +
-  se_combo_drop_nieve$Quartiletotal +
-  se_combo_drop_nieve$age_at_csf, data = colData(se_combo_drop_nieve)), maxiter.optimize = 400, BPPARAM = BiocParallel::SerialParam(), zeroinflation = TRUE)
 
-zinbAIC(zinb_nieve_cohort9, t(assay(se_combo_drop_nieve)))
-#storing ll
-x <- zinbSim(zinb_nieve_cohort9)
-ZI_ll_9 <- loglik(zinb_nieve_cohort9, x$counts)
-#storing aic 
-ZI_aic_9 <- zinbAIC(zinb_nieve_cohort9, t(assay(se_combo_drop_nieve)))
-#storing df
-ZI_df_9 <- nParams(zinb_nieve_cohort9)
-
-#Neg Biniomial 
-nb_nieve_cohort9 <- zinbFit(se_combo_drop_nieve, K = 2, X = model.matrix(~se_combo_drop_nieve$cohort +
-  se_combo_drop_nieve$sex +
-  se_combo_drop_nieve$race +
-  se_combo_drop_nieve$Quartilenonzero +
-  se_combo_drop_nieve$Quartiletotal +
-  se_combo_drop_nieve$age_at_csf, data = colData(se_combo_drop_nieve)), maxiter.optimize = 400, BPPARAM = BiocParallel::SerialParam(), zeroinflation = FALSE)
-
-#storing ll
-x <- zinbSim(nb_nieve_cohort9)
-NB_ll_9 <- loglik(nb_nieve_cohort9, x$counts)
-#storing aic 
-NB_aic_9 <- zinbAIC(nb_nieve_cohort9, t(assay(se_combo_drop_nieve)))
-#storing df
-NB_df_9 <- nParams(nb_nieve_cohort9)
+result_9 <- run_model(
+  Y = se_combo_drop_nieve,
+  xFormula = (
+    ~se_combo_drop_nieve$cohort +
+      se_combo_drop_nieve$sex +
+      se_combo_drop_nieve$race +
+      se_combo_drop_nieve$Quartilenonzero +
+      se_combo_drop_nieve$Quartiletotal +
+      se_combo_drop_nieve$age_at_csf
+  )
+)
 ```
 
 #Model 10 adding gender and age without gene level data and without total transcripts
 ```{r model 10 }
-#ZINB
-zinb_nieve_cohort10 <- zinbFit(se_combo_drop_nieve, K = 2, X = model.matrix(~se_combo_drop_nieve$cohort +
-  se_combo_drop_nieve$sex +
-  se_combo_drop_nieve$race +
-  se_combo_drop_nieve$Quartilenonzero +
-  se_combo_drop_nieve$age_at_csf, data = colData(se_combo_drop_nieve)), maxiter.optimize = 400, BPPARAM = BiocParallel::SerialParam(), zeroinflation = TRUE)
-
-zinbAIC(zinb_nieve_cohort10, t(assay(se_combo_drop_nieve)))
-#storing ll
-x <- zinbSim(zinb_nieve_cohort10)
-ZI_ll_10 <- loglik(zinb_nieve_cohort10, x$counts)
-#storing aic 
-ZI_aic_10 <- zinbAIC(zinb_nieve_cohort10, t(assay(se_combo_drop_nieve)))
-#storing df
-ZI_df_10 <- nParams(zinb_nieve_cohort10)
-
-#Neg Biniomial 
-nb_nieve_cohort10 <- zinbFit(se_combo_drop_nieve, K = 2, X = model.matrix(~se_combo_drop_nieve$cohort +
-  se_combo_drop_nieve$sex +
-  se_combo_drop_nieve$race +
-  se_combo_drop_nieve$Quartilenonzero +
-  se_combo_drop_nieve$age_at_csf, data = colData(se_combo_drop_nieve)), maxiter.optimize = 400, BPPARAM = BiocParallel::SerialParam(), zeroinflation = FALSE)
-
-#storing ll
-x <- zinbSim(nb_nieve_cohort10)
-NB_ll_10 <- loglik(nb_nieve_cohort10, x$counts)
-#storing aic 
-NB_aic_10 <- zinbAIC(nb_nieve_cohort10, t(assay(se_combo_drop_nieve)))
-#storing df
-NB_df_10 <- nParams(nb_nieve_cohort10)
+result_10 <- run_model(
+  Y = se_combo_drop_nieve,
+  xFormula = (
+    ~se_combo_drop_nieve$cohort +
+      se_combo_drop_nieve$sex +
+      se_combo_drop_nieve$race +
+      se_combo_drop_nieve$Quartilenonzero +
+      se_combo_drop_nieve$age_at_csf
+  )
+)
 ```
+
 #Making Table for AIC and ll
 ```{r making table output of AIC other parameters}
 num_rows <- 7
@@ -251,46 +212,94 @@ model_3_combo_drop_nieve <- c(
 )
 model_4_combo_drop_nieve <- c(
   "Cohort + Total Gene Counts",
-  result_4$ZI_aic_4,
-  result_4$ZI_ll_4,
-  result_4$ZI_df_4,
-  result_4$NB_aic_4,
-  result_4$NB_ll_4,
-  result_4$NB_df_4
+  result_4$ZI_aic,
+  result_4$ZI_ll,
+  result_4$ZI_df,
+  result_4$NB_aic,
+  result_4$NB_ll,
+  result_4$NB_df
 )
 model_5_combo_drop_nieve <- c(
   "Cohort + Non Zero Gene Counts + Total Gene Counts",
-  result_5$ZI_aic_5,
-  result_5$ZI_ll_5,
-  result_5$ZI_df_5,
-  result_5$NB_aic_5,
-  result_5$NB_ll_5,
-  result_5$NB_df_5
+  result_5$ZI_aic,
+  result_5$ZI_ll,
+  result_5$ZI_df,
+  result_5$NB_aic,
+  result_5$NB_ll,
+  result_5$NB_df
 )
 model_6_combo_drop_nieve <- c(
   "Cohort + Batch + Non Zero Gene Counts + Total Gene Counts + Gene Level",
-  result_6$ZI_aic_6,
-  result_6$ZI_ll_6,
-  result_6$ZI_df_6,
-  result_6$NB_aic_6,
-  result_6$NB_ll_6,
-  result_6$NB_df_6
+  result_6$ZI_aic,
+  result_6$ZI_ll,
+  result_6$ZI_df,
+  result_6$NB_aic,
+  result_6$NB_ll,
+  result_6$NB_df
 )
 model_7_combo_drop_nieve <- c(
   "Cohort + Non Zero Gene Counts + Total Gene Counts + Gene Level",
-  result_7$ZI_aic_7,
-  result_7$ZI_ll_7,
-  result_7$ZI_df_7,
-  result_7$NB_aic_7,
-  result_7$NB_ll_7,
-  result_7$NB_df_7
+  result_7$ZI_aic,
+  result_7$ZI_ll,
+  result_7$ZI_df,
+  result_7$NB_aic,
+  result_7$NB_ll,
+  result_7$NB_df
 )
-model_8_combo_drop_nieve <- c("Cohort + Non Zero Gene Counts + Total Gene Counts + Gene Level+ Age + Sex + Race", ZI_aic_8, ZI_ll_8, ZI_df_8, NB_aic_8, NB_ll_8, NB_df_8)
-model_9_combo_drop_nieve <- c("Cohort + Non Zero Gene Counts + Total Gene Counts + Age + Sex + Race", ZI_aic_9, ZI_ll_9, ZI_df_9, NB_aic_9, NB_ll_9, NB_df_9)
-model_10_combo_drop_nieve <- c("Cohort + Non Zero Gene Counts + Age + Sex + Race", ZI_aic_10, ZI_ll_10, ZI_df_10, NB_aic_10, NB_ll_10, NB_df_10)
-model_11_combo_drop_nieve <- c("Cohort + Pleocytosis", ZI_aic_11, ZI_ll_11, ZI_df_11, NB_aic_11, NB_ll_11, NB_df_11)
-model_12_combo_drop_nieve <- c("Cohort + Quartiles of Freezer Time", ZI_aic_12, ZI_ll_12, ZI_df_12, NB_aic_12, NB_ll_12, NB_df_12)
-model_14_combo_drop_nieve <- c("Cohort + Enhancing Lesino within 30 days", ZI_aic_14, ZI_ll_14, ZI_df_14, NB_aic_14, NB_ll_14, NB_df_14)
+model_8_combo_drop_nieve <- c(
+  "Cohort + Non Zero Gene Counts + Total Gene Counts + Gene Level+ Age + Sex + Race",
+  result_8$ZI_aic,
+  result_8$ZI_ll,
+  result_8$ZI_df,
+  result_8$NB_aic,
+  result_8$NB_ll,
+  result_8$NB_df
+)
+model_9_combo_drop_nieve <- c(
+  "Cohort + Non Zero Gene Counts + Total Gene Counts + Age + Sex + Race",
+  result_9$ZI_aic,
+  result_9$ZI_ll,
+  result_9$ZI_df,
+  result_9$NB_aic,
+  result_9$NB_ll,
+  result_9$NB_df
+)
+model_10_combo_drop_nieve <- c(
+  "Cohort + Non Zero Gene Counts + Age + Sex + Race",
+  result_10$ZI_aic,
+  result_10$ZI_ll,
+  result_10$ZI_df,
+  result_10$NB_aic,
+  result_10$NB_ll,
+  result_10$NB_df
+)
+model_11_combo_drop_nieve <- c(
+  "Cohort + Pleocytosis",
+  result_11$ZI_aic,
+  result_11$ZI_ll,
+  result_11$ZI_df,
+  result_11$NB_aic,
+  result_11$NB_ll,
+  result_11$NB_df
+)
+model_12_combo_drop_nieve <- c(
+  "Cohort + Quartiles of Freezer Time",
+  result_12$ZI_aic,
+  result_12$ZI_ll,
+  result_12$ZI_df,
+  result_12$NB_aic,
+  result_12$NB_ll,
+  result_12$NB_df
+)
+model_14_combo_drop_nieve <- c(
+  "Cohort + Enhancing Lesino within 30 days",
+  result_14$ZI_aic,
+  result_14$ZI_ll,
+  result_14$ZI_df,
+  result_14$NB_aic,
+  result_14$NB_ll,
+  result_14$NB_df
+)
 
 fit_df$model1_combo_drop_nieve <- model_1_combo_drop_nieve
 fit_df$model2_combo_drop_nieve <- model_2_combo_drop_nieve
