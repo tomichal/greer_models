@@ -1,4 +1,4 @@
-run_model <- function(yData, xDataFormula, maxIterOptimize = 25) {
+run_model <- function(yData, xDataFormula, maxIterOptimize = 400) {
 
   run_zinbFit <- function(zeroInflation) {
     zinbFit(
@@ -16,13 +16,13 @@ run_model <- function(yData, xDataFormula, maxIterOptimize = 25) {
   }
 
   #ZINB
-  zinb_nieve_cohort <- run_zinbFit(yData, xDataFormula, zeroInflation = TRUE)
+  zinb_nieve_cohort <- run_zinbFit(zeroInflation = TRUE)
   ZI_ll <- loglik(zinb_nieve_cohort, zinbSim(zinb_nieve_cohort)$counts)
   ZI_aic <- zinbAIC(zinb_nieve_cohort, t(assay(se_combo_drop_nieve)))
   ZI_df <- nParams(zinb_nieve_cohort)
 
   #neg binomial crude mdoel
-  nb_nieve_cohort <- run_zinbFit(yData, xDataFormula, zeroInflation = FALSE)
+  nb_nieve_cohort <- run_zinbFit(zeroInflation = FALSE)
   NB_ll <- loglik(nb_nieve_cohort, zinbSim(nb_nieve_cohort)$counts)
   NB_aic <- zinbAIC(nb_nieve_cohort, t(assay(se_combo_drop_nieve)))
   NB_df <- nParams(nb_nieve_cohort)

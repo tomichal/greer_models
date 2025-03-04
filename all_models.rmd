@@ -51,40 +51,17 @@ source("run_model.R")
 
 #Crude Model (Model 1, univariate age)
 ```{r model 1 univariate age}
-result_1 <- run_model(yData = se_combo_drop_nieve, xDataFormula = (~se_combo_drop_nieve$cohort + se_combo_drop_nieve$age_at_csf), maxIterOptimize = 400)
+result_1 <- run_model(yData = se_combo_drop_nieve, xDataFormula = (~se_combo_drop_nieve$cohort + se_combo_drop_nieve$age_at_csf))
 ```
 
 #Model2 (univariate batch)
 ```{r model 2 (univariate batch)}
-result_2 <- run_model(yData = se_combo_drop_nieve, xDataFormula = (~se_combo_drop_nieve$cohort + se_combo_drop_nieve$batch), maxIterOptimize = 400)
+result_2 <- run_model(yData = se_combo_drop_nieve, xDataFormula = (~se_combo_drop_nieve$cohort + se_combo_drop_nieve$batch))
 ```
 
 #Model 3 (univariate non-zero gene count)
 ```{r model 3 (univariate non-zero gene count)}
-#ZINB
-zinb_nieve_cohort_3 <- zinbFit(se_combo_drop_nieve, K = 2, X = model.matrix(~se_combo_drop_nieve$cohort + se_combo_drop_nieve$Quartilenonzero, data = colData(se_combo_drop_nieve)), BPPARAM = BiocParallel::SerialParam(), zeroinflation = TRUE, verbose = FALSE)
-
-zinbAIC(zinb_nieve_cohort_3, t(assay(se_combo_drop_nieve)))
-
-#storing ll
-x <- zinbSim(zinb_nieve_cohort_3)
-ZI_ll_3 <- loglik(zinb_nieve_cohort_3, x$counts)
-#storing aic 
-ZI_aic_3 <- zinbAIC(zinb_nieve_cohort_3, t(assay(se_combo_drop_nieve)))
-#storing df
-ZI_df_3 <- nParams(zinb_nieve_cohort_3)
-
-#Neg Biniominal 
-nb_nieve_cohort_3 <- zinbFit(se_combo_drop_nieve, K = 2, X = model.matrix(~se_combo_drop_nieve$cohort + se_combo_drop_nieve$Quartilenonzero, data = colData(se_combo_drop_nieve)), BPPARAM = BiocParallel::SerialParam(), zeroinflation = FALSE, verbose = FALSE)
-
-zinbAIC(nb_nieve_cohort_3, t(assay(se_combo_drop_nieve)))
-#storing ll
-x <- zinbSim(nb_nieve_cohort_3)
-NB_ll_3 <- loglik(nb_nieve_cohort_3, x$counts)
-#storing aic 
-NB_aic_3 <- zinbAIC(nb_nieve_cohort_3, t(assay(se_combo_drop_nieve)))
-#storing df
-NB_df_3 <- nParams(nb_nieve_cohort_3)
+result_3 <- run_model(yData = se_combo_drop_nieve, xDataFormula = (~se_combo_drop_nieve$cohort + se_combo_drop_nieve$Quartilenonzero), maxIterOptimize = 25)
 ```
 
 #Model 4 univariate totalcounts
@@ -456,7 +433,15 @@ model_2_combo_drop_nieve <- c(
         result_2$NB_ll,
         result_2$NB_df
 )
-model_3_combo_drop_nieve <- c("Cohort +Non Zero Gene Counts", ZI_aic_3, ZI_ll_3, ZI_df_3, NB_aic_3, NB_ll_3, NB_df_3)
+model_3_combo_drop_nieve <- c(
+  "Cohort +Non Zero Gene Counts",
+  result_3$ZI_aic,
+  result_3$ZI_ll,
+  result_3$ZI_df,
+  result_3$NB_aic,
+  result_3$NB_ll,
+  result_3$NB_df
+)
 model_4_combo_drop_nieve <- c("Cohort + Total Gene Counts", ZI_aic_4, ZI_ll_4, ZI_df_4, NB_aic_4, NB_ll_4, NB_df_4)
 model_5_combo_drop_nieve <- c("Cohort + Non Zero Gene Counts + Total Gene Counts", ZI_aic_5, ZI_ll_5, ZI_df_5, NB_aic_5, NB_ll_5, NB_df_5)
 model_6_combo_drop_nieve <- c("Cohort + Batch + Non Zero Gene Counts + Total Gene Counts + Gene Level", ZI_aic_6, ZI_ll_6, ZI_df_6, NB_aic_6, NB_ll_6, NB_df_6)
