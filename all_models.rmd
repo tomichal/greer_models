@@ -25,7 +25,6 @@ knitr::opts_chunk$set(echo = TRUE)
 setwd("~/dev/r/greer_models")
 source("load_data.R")
 loaded_data <- load_data("./data/gene_count_lazar_1000.csv", "./data/meta_data_lazar.csv")
-
 meta_MS <- loaded_data$meta_MS
 matrix_ms_predrop <- loaded_data$matrix_ms_predrop
 ```
