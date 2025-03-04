@@ -46,7 +46,18 @@ se_combo_drop_nieve <- summarized_experiment(matrix_combo_ms_ns_drop, meta_MS)
 #Crude Model (Model 1, univariate age)
 ```{r model 1 univariate age}
 #ZINB
-zinb_nieve_cohort_1 <- zinbFit(se_combo_drop_nieve, K = 2, X = model.matrix(~se_combo_drop_nieve$cohort + se_combo_drop_nieve$age_at_csf, data = colData(se_combo_drop_nieve)), BPPARAM = BiocParallel::SerialParam(), maxiter.optimize = 400, verbose = FALSE, zeroinflation = TRUE)
+zinb_nieve_cohort_1 <- zinbFit(
+  se_combo_drop_nieve,
+  K = 2,
+  X = model.matrix(
+    ~se_combo_drop_nieve$cohort + se_combo_drop_nieve$age_at_csf,
+    data = colData(se_combo_drop_nieve)
+  ),
+  BPPARAM = BiocParallel::SerialParam(),
+  maxiter.optimize = 400,
+  verbose = FALSE,
+  zeroinflation = TRUE
+)
 
 #storing ll
 x <- zinbSim(zinb_nieve_cohort_1)
@@ -57,7 +68,18 @@ ZI_aic_1 <- zinbAIC(zinb_nieve_cohort_1, t(assay(se_combo_drop_nieve)))
 ZI_df_1 <- nParams(zinb_nieve_cohort_1)
 
 #neg binomial crude mdoel 
-nb_nieve_cohort_1 <- zinbFit(se_combo_drop_nieve, K = 2, X = model.matrix(~se_combo_drop_nieve$cohort + se_combo_drop_nieve$age_at_csf, data = colData(se_combo_drop_nieve)), BPPARAM = BiocParallel::SerialParam(), maxiter.optimize = 400, verbose = FALSE, zeroinflation = FALSE)
+nb_nieve_cohort_1 <- zinbFit(
+  se_combo_drop_nieve,
+  K = 2,
+  X = model.matrix(
+    ~se_combo_drop_nieve$cohort + se_combo_drop_nieve$age_at_csf,
+    data = colData(se_combo_drop_nieve)
+  ),
+  BPPARAM = BiocParallel::SerialParam(),
+  maxiter.optimize = 400,
+  verbose = FALSE,
+  zeroinflation = FALSE
+)
 
 #storing ll
 x <- zinbSim(nb_nieve_cohort_1)
@@ -71,7 +93,17 @@ NB_df_1 <- nParams(nb_nieve_cohort_1)
 #Model2 (univariate batch)
 ```{r model 2 (univariate batch)}
 #ZINB
-zinb_nieve_cohort_2 <- zinbFit(se_combo_drop_nieve, K = 2, X = model.matrix(~se_combo_drop_nieve$cohort + se_combo_drop_nieve$batch, data = colData(se_combo_drop_nieve)), BPPARAM = BiocParallel::SerialParam(), maxiter.optimize = 400, zeroinflation = TRUE)
+zinb_nieve_cohort_2 <- zinbFit(
+  se_combo_drop_nieve,
+  K = 2,
+  X = model.matrix(
+    ~se_combo_drop_nieve$cohort + se_combo_drop_nieve$batch,
+    data = colData(se_combo_drop_nieve)
+  ),
+  BPPARAM = BiocParallel::SerialParam(),
+  maxiter.optimize = 400,
+  zeroinflation = TRUE
+)
 
 #storing ll
 x <- zinbSim(zinb_nieve_cohort_2)
@@ -83,7 +115,17 @@ ZI_df_2 <- nParams(zinb_nieve_cohort_2)
 
 
 #neg binominal
-nb_nieve_cohort_2 <- zinbFit(se_combo_drop_nieve, K = 2, X = model.matrix(~se_combo_drop_nieve$cohort + se_combo_drop_nieve$batch, data = colData(se_combo_drop_nieve)), BPPARAM = BiocParallel::SerialParam(), maxiter.optimize = 400, zeroinflation = FALSE)
+nb_nieve_cohort_2 <- zinbFit(
+  se_combo_drop_nieve,
+  K = 2,
+  X = model.matrix(
+    ~se_combo_drop_nieve$cohort + se_combo_drop_nieve$batch,
+    data = colData(se_combo_drop_nieve)
+  ),
+  BPPARAM = BiocParallel::SerialParam(),
+  maxiter.optimize = 400,
+  zeroinflation = FALSE
+)
 
 zinbAIC(nb_nieve_cohort_2, t(assay(se_combo_drop_nieve)))
 
