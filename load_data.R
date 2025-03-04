@@ -1,14 +1,12 @@
 # load_data.R
 
-load_data <- function() {
-  setwd("~/dev/r/greer_models")
-
-  ms_counts <- read_csv("./data/gene_count_lazar_1000.csv")
+load_data <- function(counts_filepath, metadata_filepath) {
+  ms_counts <- read_csv(counts_filepath)
   counts <- ms_counts %>%
     as.data.frame() %>%
     column_to_rownames(var = "...1")
 
-  meta_MS <- read_csv("./data/meta_data_lazar.csv")
+  meta_MS <- read_csv(metadata_filepath)
 
   columns_to_keep <- meta_MS$study_id
 
