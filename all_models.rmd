@@ -86,12 +86,17 @@ result_14 <- run_model(Y = se_combo_drop_nieve, xFormula = (~se_combo_drop_nieve
 
 #Model 5 (nonzero and totaltranscripts)
 ```{r model 5 nonzero and totaltranscripts}
-result_5 <- run_model(Y = se_combo_drop_nieve, xFormula = (~se_combo_drop_nieve$cohort + se_combo_drop_nieve$Quartiletotal + se_combo_drop_nieve$Quartilenonzero))
+result_5 <- run_model(Y = se_combo_drop_nieve, xFormula = (~se_combo_drop_nieve$cohort +
+  se_combo_drop_nieve$Quartiletotal +
+  se_combo_drop_nieve$Quartilenonzero))
 ```
 
 #Model 6 (nonzero and totaltranscripts and batch)
 ```{r model 6 nonzero, totaltranscripts and batch}
-result_6 <- run_model(Y = se_combo_drop_nieve, xFormula = (~se_combo_drop_nieve$cohort + se_combo_drop_nieve$Quartiletotal + se_combo_drop_nieve$Quartilenonzero + se_combo_drop_nieve$batch))
+result_6 <- run_model(Y = se_combo_drop_nieve, xFormula = (~se_combo_drop_nieve$cohort +
+  se_combo_drop_nieve$Quartiletotal +
+  se_combo_drop_nieve$Quartilenonzero +
+  se_combo_drop_nieve$batch))
 ```
 
 
@@ -100,11 +105,12 @@ result_6 <- run_model(Y = se_combo_drop_nieve, xFormula = (~se_combo_drop_nieve$
 mart <- useMart("ensembl")
 mart <- useDataset("hsapiens_gene_ensembl", mart = mart)
 
-bm <- getBM(attributes = c('hgnc_symbol', 'start_position',
-                           'end_position', 'percentage_gene_gc_content'),
-            filters = 'hgnc_symbol',
-            values = rownames(se_combo_drop_nieve),
-            mart = mart)
+bm <- getBM(
+  attributes = c('hgnc_symbol', 'start_position', 'end_position', 'percentage_gene_gc_content'),
+  filters = 'hgnc_symbol',
+  values = rownames(se_combo_drop_nieve),
+  mart = mart
+)
 bm$length <- bm$end_position - bm$start_position
 len <- tapply(bm$length, bm$hgnc_symbol, mean)
 len <- len[rownames(se_combo_drop_nieve)]
@@ -113,72 +119,31 @@ gcc <- gcc[rownames(se_combo_drop_nieve)]
 
 rowData(se_combo_drop_nieve) <- data.frame(gccontent = gcc, length = len)
 
-#ZINB
-zinb_nieve_cohort7 <- zinbFit(se_combo_drop_nieve, K = 2, X = model.matrix(~se_combo_drop_nieve$cohort +
-  se_combo_drop_nieve$Quartilenonzero +
-  se_combo_drop_nieve$Quartiletotal, data = colData(se_combo_drop_nieve), V = (~pc_genes$gcc + pc_genes$length)), maxiter.optimize = 400, BPPARAM = BiocParallel::SerialParam(), zeroinflation = TRUE)
-
-zinbAIC(zinb_nieve_cohort7, t(assay(se_combo_drop_nieve)))
-
-#storing ll
-x <- zinbSim(zinb_nieve_cohort7)
-ZI_ll_7 <- loglik(zinb_nieve_cohort7, x$counts)
-#storing aic 
-ZI_aic_7 <- zinbAIC(zinb_nieve_cohort7, t(assay(se_combo_drop_nieve)))
-#storing df
-ZI_df_7 <- nParams(zinb_nieve_cohort7)
-
-#neg biono
-nb_nieve_cohort7 <- zinbFit(se_combo_drop_nieve, K = 2, X = model.matrix(~se_combo_drop_nieve$cohort +
-  se_combo_drop_nieve$Quartilenonzero +
-  se_combo_drop_nieve$Quartiletotal, data = colData(se_combo_drop_nieve), V = (~pc_genes$gcc + pc_genes$length)), maxiter.optimize = 400, BPPARAM = BiocParallel::SerialParam(), zeroinflation = FALSE)
-
-zinbAIC(nb_nieve_cohort7, t(assay(se_combo_drop_nieve)))
-
-
-#storing ll
-x <- zinbSim(nb_nieve_cohort7)
-NB_ll_7 <- loglik(nb_nieve_cohort7, x$counts)
-#storing aic 
-NB_aic_7 <- zinbAIC(nb_nieve_cohort7, t(assay(se_combo_drop_nieve)))
-#storing df
-NB_df_7 <- nParams(nb_nieve_cohort7)
+result_7 <- run_model(
+  Y = se_combo_drop_nieve,
+  xFormula = (
+    ~se_combo_drop_nieve$cohort +
+      se_combo_drop_nieve$Quartilenonzero +
+      se_combo_drop_nieve$Quartiletotal
+  ),
+  V = (~pc_genes$gcc + pc_genes$length)
+)
 ```
 
 #Model 8 adding gender and age with gene level data
 ```{r model 8 }
-#ZINB
-zinb_nieve_cohort8 <- zinbFit(se_combo_drop_nieve, K = 2, X = model.matrix(~se_combo_drop_nieve$cohort +
-  se_combo_drop_nieve$sex +
-  se_combo_drop_nieve$race +
-  se_combo_drop_nieve$Quartiletotal +
-  se_combo_drop_nieve$Quartilenonzero +
-  se_combo_drop_nieve$age_at_csf, data = colData(se_combo_drop_nieve), V = (~pc_genes$gcc + pc_genes$length)), maxiter.optimize = 400, BPPARAM = BiocParallel::SerialParam(), zeroinflation = TRUE)
-
-zinbAIC(zinb_nieve_cohort8, t(assay(se_combo_drop_nieve)))
-#storing ll
-x <- zinbSim(zinb_nieve_cohort8)
-ZI_ll_8 <- loglik(zinb_nieve_cohort8, x$counts)
-#storing aic 
-ZI_aic_8 <- zinbAIC(zinb_nieve_cohort8, t(assay(se_combo_drop_nieve)))
-#storing df
-ZI_df_8 <- nParams(zinb_nieve_cohort8)
-
-#Neg Biniomial 
-nb_nieve_cohort8 <- zinbFit(se_combo_drop_nieve, K = 2, X = model.matrix(~se_combo_drop_nieve$cohort +
-  se_combo_drop_nieve$sex +
-  se_combo_drop_nieve$race +
-  se_combo_drop_nieve$Quartilenonzero +
-  se_combo_drop_nieve$Quartiletotal +
-  se_combo_drop_nieve$age_at_csf, data = colData(se_combo_drop_nieve), V = (~pc_genes$gcc + pc_genes$length)), BPPARAM = BiocParallel::SerialParam(), maxiter.optimize = 400, zeroinflation = FALSE)
-
-#storing ll
-x <- zinbSim(nb_nieve_cohort8)
-NB_ll_8 <- loglik(nb_nieve_cohort8, x$counts)
-#storing aic 
-NB_aic_8 <- zinbAIC(nb_nieve_cohort8, t(assay(se_combo_drop_nieve)))
-#storing df
-NB_df_8 <- nParams(zinb_nieve_cohort8)
+result_8 <- run_model(
+  Y = se_combo_drop_nieve,
+  xFormula = (
+    ~se_combo_drop_nieve$cohort +
+      se_combo_drop_nieve$sex +
+      se_combo_drop_nieve$race +
+      se_combo_drop_nieve$Quartiletotal +
+      se_combo_drop_nieve$Quartilenonzero +
+      se_combo_drop_nieve$age_at_csf
+  ),
+  V = (~pc_genes$gcc + pc_genes$length)
+)
 ```
 #Model 9 adding gender and age without gene level data
 ```{r model 9 }
@@ -258,22 +223,22 @@ rownames(fit_df) <- row_names
 
 #First cell "" can be labeled anything but I tried to put what each mother contained 
 model_1_combo_drop_nieve <- c(
-        "Cohort + Age",
-        result_1$ZI_aic,
-        result_1$ZI_ll,
-        result_1$ZI_df,
-        result_1$NB_aic,
-        result_1$NB_ll,
-        result_1$NB_df
+  "Cohort + Age",
+  result_1$ZI_aic,
+  result_1$ZI_ll,
+  result_1$ZI_df,
+  result_1$NB_aic,
+  result_1$NB_ll,
+  result_1$NB_df
 )
 model_2_combo_drop_nieve <- c(
-        "Cohort + Batch",
-        result_2$ZI_aic,
-        result_2$ZI_ll,
-        result_2$ZI_df,
-        result_2$NB_aic,
-        result_2$NB_ll,
-        result_2$NB_df
+  "Cohort + Batch",
+  result_2$ZI_aic,
+  result_2$ZI_ll,
+  result_2$ZI_df,
+  result_2$NB_aic,
+  result_2$NB_ll,
+  result_2$NB_df
 )
 model_3_combo_drop_nieve <- c(
   "Cohort +Non Zero Gene Counts",
@@ -284,10 +249,42 @@ model_3_combo_drop_nieve <- c(
   result_3$NB_ll,
   result_3$NB_df
 )
-model_4_combo_drop_nieve <- c("Cohort + Total Gene Counts", ZI_aic_4, ZI_ll_4, ZI_df_4, NB_aic_4, NB_ll_4, NB_df_4)
-model_5_combo_drop_nieve <- c("Cohort + Non Zero Gene Counts + Total Gene Counts", ZI_aic_5, ZI_ll_5, ZI_df_5, NB_aic_5, NB_ll_5, NB_df_5)
-model_6_combo_drop_nieve <- c("Cohort + Batch + Non Zero Gene Counts + Total Gene Counts + Gene Level", ZI_aic_6, ZI_ll_6, ZI_df_6, NB_aic_6, NB_ll_6, NB_df_6)
-model_7_combo_drop_nieve <- c("Cohort + Non Zero Gene Counts + Total Gene Counts + Gene Level", ZI_aic_7, ZI_ll_7, ZI_df_7, NB_aic_7, NB_ll_7, NB_df_7)
+model_4_combo_drop_nieve <- c(
+  "Cohort + Total Gene Counts",
+  result_4$ZI_aic_4,
+  result_4$ZI_ll_4,
+  result_4$ZI_df_4,
+  result_4$NB_aic_4,
+  result_4$NB_ll_4,
+  result_4$NB_df_4
+)
+model_5_combo_drop_nieve <- c(
+  "Cohort + Non Zero Gene Counts + Total Gene Counts",
+  result_5$ZI_aic_5,
+  result_5$ZI_ll_5,
+  result_5$ZI_df_5,
+  result_5$NB_aic_5,
+  result_5$NB_ll_5,
+  result_5$NB_df_5
+)
+model_6_combo_drop_nieve <- c(
+  "Cohort + Batch + Non Zero Gene Counts + Total Gene Counts + Gene Level",
+  result_6$ZI_aic_6,
+  result_6$ZI_ll_6,
+  result_6$ZI_df_6,
+  result_6$NB_aic_6,
+  result_6$NB_ll_6,
+  result_6$NB_df_6
+)
+model_7_combo_drop_nieve <- c(
+  "Cohort + Non Zero Gene Counts + Total Gene Counts + Gene Level",
+  result_7$ZI_aic_7,
+  result_7$ZI_ll_7,
+  result_7$ZI_df_7,
+  result_7$NB_aic_7,
+  result_7$NB_ll_7,
+  result_7$NB_df_7
+)
 model_8_combo_drop_nieve <- c("Cohort + Non Zero Gene Counts + Total Gene Counts + Gene Level+ Age + Sex + Race", ZI_aic_8, ZI_ll_8, ZI_df_8, NB_aic_8, NB_ll_8, NB_df_8)
 model_9_combo_drop_nieve <- c("Cohort + Non Zero Gene Counts + Total Gene Counts + Age + Sex + Race", ZI_aic_9, ZI_ll_9, ZI_df_9, NB_aic_9, NB_ll_9, NB_df_9)
 model_10_combo_drop_nieve <- c("Cohort + Non Zero Gene Counts + Age + Sex + Race", ZI_aic_10, ZI_ll_10, ZI_df_10, NB_aic_10, NB_ll_10, NB_df_10)
