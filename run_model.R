@@ -1,0 +1,38 @@
+run_model <- function(yData, xDataObject) {
+
+  run_zinbFit <- function(yData, xDataObject, zeroInflation) {
+    zinbFit(
+      yData,
+      K = 2,
+      X = model.matrix(
+        xDataObject,
+        data = colData(se_combo_drop_nieve)
+      ),
+      BPPARAM = BiocParallel::SerialParam(),
+      maxiter.optimize = 400,
+      verbose = FALSE,
+      zeroinflation = zeroInflation
+    )
+  }
+
+  #ZINB
+  zinb_nieve_cohort <- run_zinbFit(yData, xDataObject, zeroInflation = TRUE)
+  ZI_ll <- loglik(zinb_nieve_cohort, zinbSim(zinb_nieve_cohort)$counts)
+  ZI_aic <- zinbAIC(zinb_nieve_cohort, t(assay(se_combo_drop_nieve)))
+  ZI_df <- nParams(zinb_nieve_cohort)
+
+  #neg binomial crude mdoel
+  nb_nieve_cohort <- run_zinbFit(yData, xDataObject, zeroInflation = FALSE)
+  NB_ll <- loglik(nb_nieve_cohort, zinbSim(nb_nieve_cohort)$counts)
+  NB_aic <- zinbAIC(nb_nieve_cohort, t(assay(se_combo_drop_nieve)))
+  NB_df <- nParams(nb_nieve_cohort)
+
+  list(
+    ZI_ll = ZI_ll,
+    ZI_aic = ZI_aic,
+    ZI_df = ZI_df,
+    NB_ll = NB_ll,
+    NB_aic = NB_aic,
+    NB_df = NB_df
+  )
+}
