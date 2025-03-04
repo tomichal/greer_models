@@ -1,0 +1,580 @@
+---
+title: "Model Fitting Combo_nieve_cohort"
+author: "Greer Waldrop"
+date: "2/13/2025"
+output: html_document
+---
+
+#you will need to input your paths in the first chunk and in all the chunks for the models you need to input your data in the model matrix and then the last chuck you need to put the output path for the csv of the model fitting results; you will also need the tsv file of "biomart_protein_coding_genes_withgeneinfo.tsv" loaded into your working directory#
+
+```{r setup, include=FALSE}
+library(BiocParallel)
+library(rmarkdown)
+library(knitr)
+library(zinbwave)
+library(readr)
+library(tidyr)
+library(tibble)
+library(biomaRt)
+library(dplyr)
+
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r load in MS Data}
+
+setwd("~/")
+
+ms_counts <- read_csv("~/gene_count_lazar.csv")
+counts <- ms_counts %>%
+  as.data.frame() %>%
+  column_to_rownames(var = "...1")
+
+#inport meta data
+meta_MS <- read_csv("~meta_data_lazar.csv")
+
+#drop counts that aren't in MS Meta Data 
+# Get the column names that match the values in Dataset 2
+columns_to_keep <- meta_MS$study_id
+
+# Subset Dataset 1 to include only matching columns
+subset_data_ms_drop<- counts[, colnames(counts) %in% columns_to_keep]
+
+matrix_ms_predrop <- as.matrix(subset_data_ms_drop)
+
+#Load in protein coding and gene info tsv form working directory
+#pc_genes <-read.delim("~/biomart_protein_coding_genes_withgeneinfo.tsv", stringsAsFactors = FALSE)
+```
+
+``` {r combine ms and ns matrix, and drop zero genes}
+
+#dropping zero genes
+row_sums_combo <- rowSums(matrix_ms_predrop)
+zero_row_names_combo <- rownames(matrix_ms_predrop)[row_sums_combo == 0]
+print(matrix_ms_predrop)
+matrix_combo_ms_ns_drop <- matrix_ms_predrop[rowSums(matrix_ms_predrop) != 0, ]
+
+#checking if there are zero sum rows
+row_sums_combo_drop <- rowSums(matrix_ms_predrop)
+zero_row_names_combo_after_drop <- rownames(matrix_ms_predrop)[rowSums(matrix_ms_predrop) == 0]
+print(zero_row_names_combo_after_drop)
+```
+
+```{r making some edits to variables so there is no missing variables}
+
+print(addmargins(table(meta_MS$pleocytosis)))
+meta_MS$pleocytosis[is.na(meta_MS$pleocytosis)] <- 3
+
+print(addmargins(table(meta_MS$enhancing)))
+meta_MS$enhancing[is.na(meta_MS$enhancing)] <- "Missing"
+
+print(addmargins(table(meta_MS$immunetherapyattimeoflp)))
+meta_MS$immunetherapyattimeoflp[is.na(meta_MS$immunetherapyattimeoflp)] <- 2
+
+```
+
+#Make a Summarized Experiment Object
+```{r Make a summarized Experiment object}
+se_combo_drop_nieve <- SummarizedExperiment(
+  assays = list(counts = matrix_combo_ms_ns_drop), colData = data.frame(meta_MS)
+)
+
+#Make Quartiles of Number of Non Zero Genes and Total Transcripts and time from collection to sequencing just for ease of model convering
+quartiles_total <- quantile(se_combo_drop_nieve$totaltranscripts, probs = c(0, 0.25, 0.5, 0.75, 1))
+
+categorize_quartile_total <- function(value, quartiles_total) {
+  if (value <= quartiles_total[2]) {
+    return("Q1")
+  } else if (value <= quartiles_total[3]) {
+    return("Q2")
+  } else if (value <= quartiles_total[4]) {
+    return("Q3")
+  } else {
+    return("Q4")
+  }
+}
+
+#Add that quartile variable to the Summarized Experiment object 
+se_combo_drop_nieve$Quartiletotal <- sapply(se_combo_drop_nieve$totaltranscripts, categorize_quartile_total, quartiles_total = quartiles_total)
+
+#numnonzero quartiles
+quartiles <- quantile(se_combo_drop_nieve$numnonzero, probs = c(0, 0.25, 0.5, 0.75, 1))
+
+categorize_quartile <- function(value, quartiles) {
+  if (value <= quartiles[2]) {
+    return("Q1")
+  } else if (value <= quartiles[3]) {
+    return("Q2")
+  } else if (value <= quartiles[4]) {
+    return("Q3")
+  } else {
+    return("Q4")
+  }
+}
+
+#Add that quartile variable to the Summarized Experiment object 
+se_combo_drop_nieve$Quartilenonzero <- sapply(se_combo_drop_nieve$numnonzero, categorize_quartile, quartiles = quartiles)
+
+
+#freezer time quartiles
+quartiles <- quantile(se_combo_drop_nieve$coll_to_seq, probs = c(0, 0.25, 0.5, 0.75, 1))
+
+categorize_quartile <- function(value, quartiles) {
+  if (value <= quartiles[2]) {
+    return("Q1")
+  } else if (value <= quartiles[3]) {
+    return("Q2")
+  } else if (value <= quartiles[4]) {
+    return("Q3")
+  } else {
+    return("Q4")
+  }
+}
+
+#Add that quartile variable to the Summarized Experiment object 
+se_combo_drop_nieve$Quartilefreezer <- sapply(se_combo_drop_nieve$coll_to_seq, categorize_quartile, quartiles = quartiles)
+
+```
+
+#Crude Model (Model 1, univariate age)
+```{r model 1 univariate age}
+library(zinbwave)
+
+#ZINB
+zinb_nieve_cohort_1<- zinbFit(se_combo_drop_nieve, K = 2, X=model.matrix(~se_combo_drop_nieve$cohort + se_combo_drop_nieve$age_at_csf, data=colData(se_combo_drop_nieve) ), BPPARAM=BiocParallel::SerialParam(), maxiter.optimize = 400, verbose = FALSE, zeroinflation = TRUE)
+
+#storing ll
+x <- zinbSim(zinb_nieve_cohort_1)
+ZI_ll_1 <- loglik(zinb_nieve_cohort_1, x$counts)
+#storing aic 
+ZI_aic_1 <- zinbAIC(zinb_nieve_cohort_1, t(assay(se_combo_drop_nieve)))
+#storing df
+ZI_df_1 <- nParams(zinb_nieve_cohort_1)
+
+#neg binomial crude mdoel 
+nb_nieve_cohort_1<- zinbFit(se_combo_drop_nieve, K = 2, X=model.matrix(~se_combo_drop_nieve$cohort + se_combo_drop_nieve$age_at_csf, data=colData(se_combo_drop_nieve) ), BPPARAM=BiocParallel::SerialParam(), maxiter.optimize = 400, verbose = FALSE, zeroinflation=FALSE)
+
+#storing ll
+x <- zinbSim(nb_nieve_cohort_1)
+NB_ll_1 <- loglik(nb_nieve_cohort_1, x$counts)
+#storing aic 
+NB_aic_1 <- zinbAIC(nb_nieve_cohort_1, t(assay(se_combo_drop_nieve)))
+#storing df
+NB_df_1 <- nParams(nb_nieve_cohort_1)
+
+```
+#Model2 (univariate batch)
+```{r model 2 (univariate batch)}
+#ZINB
+zinb_nieve_cohort_2 <- zinbFit(se_combo_drop_nieve, K = 2, X=model.matrix(~se_combo_drop_nieve$cohort + se_combo_drop_nieve$batch, data=colData(se_combo_drop_nieve) ), BPPARAM=BiocParallel::SerialParam(), maxiter.optimize = 400, zeroinflation = TRUE)
+
+#storing ll
+x <- zinbSim(zinb_nieve_cohort_2)
+ZI_ll_2 <- loglik(zinb_nieve_cohort_2, x$counts)
+#storing aic 
+ZI_aic_2 <- zinbAIC(zinb_nieve_cohort_2, t(assay(se_combo_drop_nieve)))
+#storing df
+ZI_df_2 <- nParams(zinb_nieve_cohort_2)
+
+
+#neg binominal
+nb_nieve_cohort_2 <- zinbFit(se_combo_drop_nieve, K = 2, X=model.matrix(~se_combo_drop_nieve$cohort + se_combo_drop_nieve$batch, data=colData(se_combo_drop_nieve) ), BPPARAM=BiocParallel::SerialParam(),maxiter.optimize = 400, zeroinflation = FALSE)
+
+zinbAIC(nb_nieve_cohort_2, t(assay(se_combo_drop_nieve)))
+
+#storing ll
+x <- zinbSim(nb_nieve_cohort_2)
+NB_ll_2 <- loglik(nb_nieve_cohort_2, x$counts)
+#storing aic 
+NB_aic_2 <- zinbAIC(nb_nieve_cohort_2, t(assay(se_combo_drop_nieve)))
+#storing df
+NB_df_2 <- nParams(nb_nieve_cohort_2)
+
+```
+
+#Model 3 (univariate non-zero gene count)
+```{r model 3 (univariate non-zero gene count)}
+#ZINB
+zinb_nieve_cohort_3 <- zinbFit(se_combo_drop_nieve, K = 2, X=model.matrix(~se_combo_drop_nieve$cohort + se_combo_drop_nieve$Quartilenonzero, data=colData(se_combo_drop_nieve) ), BPPARAM=BiocParallel::SerialParam(), zeroinflation = TRUE, verbose=FALSE)
+
+zinbAIC(zinb_nieve_cohort_3, t(assay(se_combo_drop_nieve)))
+
+#storing ll
+x <- zinbSim(zinb_nieve_cohort_3)
+ZI_ll_3 <- loglik(zinb_nieve_cohort_3, x$counts)
+#storing aic 
+ZI_aic_3 <- zinbAIC(zinb_nieve_cohort_3, t(assay(se_combo_drop_nieve)))
+#storing df
+ZI_df_3 <- nParams(zinb_nieve_cohort_3)
+
+#Neg Biniominal 
+nb_nieve_cohort_3 <- zinbFit(se_combo_drop_nieve, K = 2, X=model.matrix(~se_combo_drop_nieve$cohort + se_combo_drop_nieve$Quartilenonzero, data=colData(se_combo_drop_nieve) ), BPPARAM=BiocParallel::SerialParam(), zeroinflation = FALSE, verbose=FALSE)
+
+zinbAIC(nb_nieve_cohort_3, t(assay(se_combo_drop_nieve)))
+#storing ll
+x <- zinbSim(nb_nieve_cohort_3)
+NB_ll_3 <- loglik(nb_nieve_cohort_3, x$counts)
+#storing aic 
+NB_aic_3 <- zinbAIC(nb_nieve_cohort_3, t(assay(se_combo_drop_nieve)))
+#storing df
+NB_df_3 <- nParams(nb_nieve_cohort_3)
+```
+
+#Model 4 univariate totalcounts
+```{r model 4 univariate totalcounts}
+#ZINB
+zinb_nieve_cohort4 <- zinbFit(se_combo_drop_nieve, K = 2, X=model.matrix(~se_combo_drop_nieve$cohort + se_combo_drop_nieve$Quartiletotal, data=colData(se_combo_drop_nieve) ), BPPARAM=BiocParallel::SerialParam(), maxiter.optimize = 400, zeroinflation = TRUE, verbose=FALSE)
+
+zinbAIC(zinb_nieve_cohort4, t(assay(se_combo_drop_nieve)))
+
+#storing ll
+x <- zinbSim(zinb_nieve_cohort4)
+ZI_ll_4 <- loglik(zinb_nieve_cohort4, x$counts)
+#storing aic 
+ZI_aic_4 <- zinbAIC(zinb_nieve_cohort4, t(assay(se_combo_drop_nieve)))
+#storing df
+ZI_df_4 <- nParams(zinb_nieve_cohort4)
+
+#neg Biono
+nb_nieve_cohort4 <- zinbFit(se_combo_drop_nieve, K = 2, X=model.matrix(~se_combo_drop_nieve$cohort + se_combo_drop_nieve$Quartiletotal, data=colData(se_combo_drop_nieve) ), BPPARAM=BiocParallel::SerialParam(), maxiter.optimize = 400, zeroinflation = FALSE, verbose=FALSE)
+
+zinbAIC(nb_nieve_cohort4, t(assay(se_combo_drop_nieve)))
+
+#storing ll
+x <- zinbSim(nb_nieve_cohort4)
+NB_ll_4 <- loglik(nb_nieve_cohort4, x$counts)
+#storing aic 
+NB_aic_4 <- zinbAIC(nb_nieve_cohort4, t(assay(se_combo_drop_nieve)))
+#storing df
+NB_df_4 <- nParams(nb_nieve_cohort4)
+
+```
+
+#Model 11 (freezer time)
+```{r model 11 univariate freezer time}
+#ZINB
+zinb_nieve_cohort11 <- zinbFit(se_combo_drop_nieve, K = 2, X=model.matrix(~se_combo_drop_nieve$cohort + se_combo_drop_nieve$Quartilefreezer, data=colData(se_combo_drop_nieve) ), BPPARAM=BiocParallel::SerialParam(), maxiter.optimize = 400, zeroinflation = TRUE, verbose=FALSE)
+
+zinbAIC(zinb_nieve_cohort11, t(assay(se_combo_drop_nieve)))
+
+#storing ll
+x <- zinbSim(zinb_nieve_cohort11)
+ZI_ll_11 <- loglik(zinb_nieve_cohort11, x$counts)
+#storing aic 
+ZI_aic_11 <- zinbAIC(zinb_nieve_cohort11, t(assay(se_combo_drop_nieve)))
+#storing df
+ZI_df_11 <- nParams(zinb_nieve_cohort11)
+
+#neg Biono
+nb_nieve_cohort11 <- zinbFit(se_combo_drop_nieve, K = 2, X=model.matrix(~se_combo_drop_nieve$cohort + se_combo_drop_nieve$Quartilefreezer, data=colData(se_combo_drop_nieve) ), BPPARAM=BiocParallel::SerialParam(), maxiter.optimize = 400, zeroinflation = FALSE, verbose=FALSE)
+
+zinbAIC(nb_nieve_cohort11, t(assay(se_combo_drop_nieve)))
+
+#storing ll
+x <- zinbSim(nb_nieve_cohort11)
+NB_ll_11 <- loglik(nb_nieve_cohort11, x$counts)
+#storing aic 
+NB_aic_11 <- zinbAIC(nb_nieve_cohort11, t(assay(se_combo_drop_nieve)))
+#storing df
+NB_df_11 <- nParams(nb_nieve_cohort11)
+```
+#Model 12 (pleocytosis)
+```{r model 12 univariate pleocytosis}
+#ZINB
+zinb_nieve_cohort12 <- zinbFit(se_combo_drop_nieve, K = 2, X=model.matrix(~se_combo_drop_nieve$cohort + se_combo_drop_nieve$pleocytosis, data=colData(se_combo_drop_nieve) ), BPPARAM=BiocParallel::SerialParam(), maxiter.optimize = 400, zeroinflation = TRUE, verbose=FALSE)
+
+zinbAIC(zinb_nieve_cohort12, t(assay(se_combo_drop_nieve)))
+
+#storing ll
+x <- zinbSim(zinb_nieve_cohort12)
+ZI_ll_12 <- loglik(zinb_nieve_cohort12, x$counts)
+#storing aic 
+ZI_aic_12 <- zinbAIC(zinb_nieve_cohort12, t(assay(se_combo_drop_nieve)))
+#storing df
+ZI_df_12 <- nParams(zinb_nieve_cohort12)
+
+#neg Biono
+nb_nieve_cohort12 <- zinbFit(se_combo_drop_nieve, K = 2, X=model.matrix(~se_combo_drop_nieve$cohort + se_combo_drop_nieve$pleocytosis, data=colData(se_combo_drop_nieve) ), BPPARAM=BiocParallel::SerialParam(), maxiter.optimize = 400, zeroinflation = FALSE, verbose=FALSE)
+
+zinbAIC(nb_nieve_cohort12, t(assay(se_combo_drop_nieve)))
+
+#storing ll
+x <- zinbSim(nb_nieve_cohort12)
+NB_ll_12<- loglik(nb_nieve_cohort12, x$counts)
+#storing aic 
+NB_aic_12 <- zinbAIC(nb_nieve_cohort12, t(assay(se_combo_drop_nieve)))
+#storing df
+NB_df_12 <- nParams(nb_nieve_cohort12)
+```
+
+#Model 14 (enhancing)
+```{r model 14 enhancing}
+#ZINB
+zinb_nieve_cohort14 <- zinbFit(se_combo_drop_nieve, K = 2, X=model.matrix(~se_combo_drop_nieve$cohort + se_combo_drop_nieve$enhancing, data=colData(se_combo_drop_nieve) ), BPPARAM=BiocParallel::SerialParam(), maxiter.optimize = 400, zeroinflation = TRUE, verbose=FALSE)
+
+zinbAIC(zinb_nieve_cohort14, t(assay(se_combo_drop_nieve)))
+
+#storing ll
+x <- zinbSim(zinb_nieve_cohort14)
+ZI_ll_14 <- loglik(zinb_nieve_cohort14, x$counts)
+#storing aic 
+ZI_aic_14 <- zinbAIC(zinb_nieve_cohort14, t(assay(se_combo_drop_nieve)))
+#storing df
+ZI_df_14 <- nParams(zinb_nieve_cohort14)
+
+#neg Biono
+nb_nieve_cohort14 <- zinbFit(se_combo_drop_nieve, K = 2, X=model.matrix(~se_combo_drop_nieve$cohort +se_combo_drop_nieve$enhancing, data=colData(se_combo_drop_nieve) ), BPPARAM=BiocParallel::SerialParam(), maxiter.optimize = 400, zeroinflation = FALSE, verbose=FALSE)
+
+zinbAIC(nb_nieve_cohort14, t(assay(se_combo_drop_nieve)))
+
+#storing ll
+x <- zinbSim(nb_nieve_cohort14)
+NB_ll_14<- loglik(nb_nieve_cohort14, x$counts)
+#storing aic 
+NB_aic_14 <- zinbAIC(nb_nieve_cohort14, t(assay(se_combo_drop_nieve)))
+#storing df
+NB_df_14 <- nParams(nb_nieve_cohort14)
+```
+
+#Model 5 (nonzero and totaltranscripts)
+```{r model 5 nonzero and totaltranscripts}
+#ZINB
+zinb_nieve_cohort5 <- zinbFit(se_combo_drop_nieve, K = 2, X=model.matrix(~se_combo_drop_nieve$cohort +se_combo_drop_nieve$Quartiletotal + se_combo_drop_nieve$Quartilenonzero, data=colData(se_combo_drop_nieve) ), BPPARAM=BiocParallel::SerialParam(),maxiter.optimize = 400, zeroinflation = TRUE, verbose=FALSE)
+
+zinbAIC(zinb_nieve_cohort5, t(assay(se_combo_drop_nieve)))
+
+
+#storing ll
+x <- zinbSim(zinb_nieve_cohort5)
+ZI_ll_5 <- loglik(zinb_nieve_cohort5, x$counts)
+#storing aic 
+ZI_aic_5 <- zinbAIC(zinb_nieve_cohort5, t(assay(se_combo_drop_nieve)))
+#storing df
+ZI_df_5 <- nParams(zinb_nieve_cohort5)
+
+#Negative Bino
+nb_nieve_cohort5 <- zinbFit(se_combo_drop_nieve, K = 2, X=model.matrix(~se_combo_drop_nieve$cohort + se_combo_drop_nieve$Quartiletotal +se_combo_drop_nieve$Quartilenonzero, data=colData(se_combo_drop_nieve) ), maxiter.optimize = 400, BPPARAM=BiocParallel::SerialParam(), zeroinflation = FALSE)
+
+zinbAIC(nb_nieve_cohort5, t(assay(se_combo_drop_nieve)))
+
+#storing ll
+x <- zinbSim(nb_nieve_cohort5)
+NB_ll_5 <- loglik(nb_nieve_cohort5, x$counts)
+#storing aic 
+NB_aic_5 <- zinbAIC(nb_nieve_cohort5, t(assay(se_combo_drop_nieve)))
+#storing df
+NB_df_5 <- nParams(nb_nieve_cohort5)
+
+```
+
+#Model 6 (nonzero and totaltranscripts and batch)
+```{r model 6 nonzero, totaltranscripts and batch}
+#ZINB
+zinb_nieve_cohort6 <- zinbFit(se_combo_drop_nieve, K = 2, X=model.matrix(~se_combo_drop_nieve$cohort + se_combo_drop_nieve$Quartiletotal +se_combo_drop_nieve$Quartilenonzero +se_combo_drop_nieve$batch, data=colData(se_combo_drop_nieve) ), maxiter.optimize = 400, BPPARAM=BiocParallel::SerialParam(), zeroinflation = TRUE, verbose=FALSE)
+
+zinbAIC(zinb_nieve_cohort6, t(assay(se_combo_drop_nieve)))
+
+
+#storing ll
+x <- zinbSim(zinb_nieve_cohort6)
+ZI_ll_6 <- loglik(zinb_nieve_cohort6, x$counts)
+#storing aic 
+ZI_aic_6 <- zinbAIC(zinb_nieve_cohort6, t(assay(se_combo_drop_nieve)))
+#storing df
+ZI_df_6 <- nParams(zinb_nieve_cohort6)
+
+#Negative Bino
+nb_nieve_cohort6 <- zinbFit(se_combo_drop_nieve, K = 2, X=model.matrix(~se_combo_drop_nieve$cohort + se_combo_drop_nieve$Quartiletotal +se_combo_drop_nieve$Quartilenonzero +se_combo_drop_nieve$batch, data=colData(se_combo_drop_nieve) ), maxiter.optimize = 400, BPPARAM=BiocParallel::SerialParam(), zeroinflation = FALSE)
+
+zinbAIC(nb_nieve_cohort6, t(assay(se_combo_drop_nieve)))
+
+#storing ll
+x <- zinbSim(nb_nieve_cohort6)
+NB_ll_6 <- loglik(nb_nieve_cohort6, x$counts)
+#storing aic 
+NB_aic_6 <- zinbAIC(nb_nieve_cohort6, t(assay(se_combo_drop_nieve)))
+#storing df
+NB_df_6 <- nParams(nb_nieve_cohort6)
+
+```
+
+
+#Model 7 adding gene level data
+```{r model 7 adding gene level data}
+mart <- useMart("ensembl")
+mart <- useDataset("hsapiens_gene_ensembl", mart = mart)
+
+bm <- getBM(attributes=c('hgnc_symbol', 'start_position',
+                         'end_position', 'percentage_gene_gc_content'),
+            filters = 'hgnc_symbol',
+            values = rownames(se_combo_drop_nieve),
+            mart = mart)
+bm$length <- bm$end_position - bm$start_position
+len <- tapply(bm$length, bm$hgnc_symbol, mean)
+len <- len[rownames(se_combo_drop_nieve)]
+gcc <- tapply(bm$percentage_gene_gc_content, bm$hgnc_symbol, mean)
+gcc <- gcc[rownames(se_combo_drop_nieve)]
+
+rowData(se_combo_drop_nieve) <- data.frame(gccontent = gcc, length = len)
+
+#ZINB
+zinb_nieve_cohort7 <- zinbFit(se_combo_drop_nieve, K = 2, X=model.matrix(~se_combo_drop_nieve$cohort + se_combo_drop_nieve$Quartilenonzero + se_combo_drop_nieve$Quartiletotal, data=colData(se_combo_drop_nieve),  V=(~pc_genes$gcc + pc_genes$length)), maxiter.optimize = 400, BPPARAM=BiocParallel::SerialParam(),  zeroinflation = TRUE)
+
+zinbAIC(zinb_nieve_cohort7, t(assay(se_combo_drop_nieve)))
+
+#storing ll
+x <- zinbSim(zinb_nieve_cohort7)
+ZI_ll_7 <- loglik(zinb_nieve_cohort7, x$counts)
+#storing aic 
+ZI_aic_7 <- zinbAIC(zinb_nieve_cohort7, t(assay(se_combo_drop_nieve)))
+#storing df
+ZI_df_7 <- nParams(zinb_nieve_cohort7)
+
+#neg biono
+nb_nieve_cohort7 <- zinbFit(se_combo_drop_nieve, K = 2, X=model.matrix(~se_combo_drop_nieve$cohort + se_combo_drop_nieve$Quartilenonzero + se_combo_drop_nieve$Quartiletotal, data=colData(se_combo_drop_nieve),  V=(~pc_genes$gcc + pc_genes$length)),maxiter.optimize = 400, BPPARAM=BiocParallel::SerialParam(),  zeroinflation = FALSE)
+
+zinbAIC(nb_nieve_cohort7, t(assay(se_combo_drop_nieve)))
+
+
+#storing ll
+x <- zinbSim(nb_nieve_cohort7)
+NB_ll_7 <- loglik(nb_nieve_cohort7, x$counts)
+#storing aic 
+NB_aic_7 <- zinbAIC(nb_nieve_cohort7, t(assay(se_combo_drop_nieve)))
+#storing df
+NB_df_7 <- nParams(nb_nieve_cohort7)
+```
+
+#Model 8 adding gender and age with gene level data
+```{r model 8 }
+#ZINB
+zinb_nieve_cohort8 <- zinbFit(se_combo_drop_nieve, K = 2, X=model.matrix(~se_combo_drop_nieve$cohort + se_combo_drop_nieve$sex + se_combo_drop_nieve$race  +se_combo_drop_nieve$Quartiletotal + se_combo_drop_nieve$Quartilenonzero + se_combo_drop_nieve$age_at_csf, data=colData(se_combo_drop_nieve),  V=(~pc_genes$gcc + pc_genes$length)), maxiter.optimize = 400, BPPARAM=BiocParallel::SerialParam(), zeroinflation = TRUE)
+
+zinbAIC(zinb_nieve_cohort8, t(assay(se_combo_drop_nieve)))
+#storing ll
+x <- zinbSim(zinb_nieve_cohort8)
+ZI_ll_8 <- loglik(zinb_nieve_cohort8, x$counts)
+#storing aic 
+ZI_aic_8 <- zinbAIC(zinb_nieve_cohort8, t(assay(se_combo_drop_nieve)))
+#storing df
+ZI_df_8 <- nParams(zinb_nieve_cohort8)
+
+#Neg Biniomial 
+nb_nieve_cohort8 <- zinbFit(se_combo_drop_nieve, K = 2, X=model.matrix(~se_combo_drop_nieve$cohort + se_combo_drop_nieve$sex + se_combo_drop_nieve$race +se_combo_drop_nieve$Quartilenonzero +se_combo_drop_nieve$Quartiletotal + se_combo_drop_nieve$age_at_csf, data=colData(se_combo_drop_nieve), V=(~pc_genes$gcc + pc_genes$length)), BPPARAM=BiocParallel::SerialParam(), maxiter.optimize = 400, zeroinflation = FALSE)
+
+#storing ll
+x <- zinbSim(nb_nieve_cohort8)
+NB_ll_8 <- loglik(nb_nieve_cohort8, x$counts)
+#storing aic 
+NB_aic_8 <- zinbAIC(nb_nieve_cohort8, t(assay(se_combo_drop_nieve)))
+#storing df
+NB_df_8 <- nParams(zinb_nieve_cohort8)
+```
+#Model 9 adding gender and age without gene level data
+```{r model 9 }
+#ZINB
+zinb_nieve_cohort9 <- zinbFit(se_combo_drop_nieve, K = 2, X=model.matrix(~se_combo_drop_nieve$cohort + se_combo_drop_nieve$sex + se_combo_drop_nieve$race +se_combo_drop_nieve$Quartilenonzero + se_combo_drop_nieve$Quartiletotal + se_combo_drop_nieve$age_at_csf, data=colData(se_combo_drop_nieve)), maxiter.optimize = 400, BPPARAM=BiocParallel::SerialParam(), zeroinflation = TRUE)
+
+zinbAIC(zinb_nieve_cohort9, t(assay(se_combo_drop_nieve)))
+#storing ll
+x <- zinbSim(zinb_nieve_cohort9)
+ZI_ll_9 <- loglik(zinb_nieve_cohort9, x$counts)
+#storing aic 
+ZI_aic_9 <- zinbAIC(zinb_nieve_cohort9, t(assay(se_combo_drop_nieve)))
+#storing df
+ZI_df_9 <- nParams(zinb_nieve_cohort9)
+
+#Neg Biniomial 
+nb_nieve_cohort9 <- zinbFit(se_combo_drop_nieve, K = 2, X=model.matrix(~se_combo_drop_nieve$cohort + se_combo_drop_nieve$sex + se_combo_drop_nieve$race  + se_combo_drop_nieve$Quartilenonzero + se_combo_drop_nieve$Quartiletotal + se_combo_drop_nieve$age_at_csf, data=colData(se_combo_drop_nieve)), maxiter.optimize = 400, BPPARAM=BiocParallel::SerialParam(), zeroinflation = FALSE)
+
+#storing ll
+x <- zinbSim(nb_nieve_cohort9)
+NB_ll_9 <- loglik(nb_nieve_cohort9, x$counts)
+#storing aic 
+NB_aic_9 <- zinbAIC(nb_nieve_cohort9, t(assay(se_combo_drop_nieve)))
+#storing df
+NB_df_9 <- nParams(nb_nieve_cohort9)
+```
+
+#Model 10 adding gender and age without gene level data and without total transcripts
+```{r model 10 }
+#ZINB
+zinb_nieve_cohort10 <- zinbFit(se_combo_drop_nieve, K = 2, X=model.matrix(~se_combo_drop_nieve$cohort + se_combo_drop_nieve$sex + se_combo_drop_nieve$race +se_combo_drop_nieve$Quartilenonzero + se_combo_drop_nieve$age_at_csf, data=colData(se_combo_drop_nieve)), maxiter.optimize = 400, BPPARAM=BiocParallel::SerialParam(), zeroinflation = TRUE)
+
+zinbAIC(zinb_nieve_cohort10, t(assay(se_combo_drop_nieve)))
+#storing ll
+x <- zinbSim(zinb_nieve_cohort10)
+ZI_ll_10 <- loglik(zinb_nieve_cohort10, x$counts)
+#storing aic 
+ZI_aic_10 <- zinbAIC(zinb_nieve_cohort10, t(assay(se_combo_drop_nieve)))
+#storing df
+ZI_df_10 <- nParams(zinb_nieve_cohort10)
+
+#Neg Biniomial 
+nb_nieve_cohort10 <- zinbFit(se_combo_drop_nieve, K = 2, X=model.matrix(~se_combo_drop_nieve$cohort + se_combo_drop_nieve$sex + se_combo_drop_nieve$race  + se_combo_drop_nieve$Quartilenonzero  + se_combo_drop_nieve$age_at_csf, data=colData(se_combo_drop_nieve)), maxiter.optimize = 400, BPPARAM=BiocParallel::SerialParam(), zeroinflation = FALSE)
+
+#storing ll
+x <- zinbSim(nb_nieve_cohort10)
+NB_ll_10 <- loglik(nb_nieve_cohort10, x$counts)
+#storing aic 
+NB_aic_10 <- zinbAIC(nb_nieve_cohort10, t(assay(se_combo_drop_nieve)))
+#storing df
+NB_df_10 <- nParams(nb_nieve_cohort10)
+```
+#Making Table for AIC and ll
+```{r making table output of AIC other parameters}
+num_rows <- 7
+fit_df <- data.frame(matrix(ncol = 0, nrow = num_rows))
+row_names <- c("Models", "ZI AIC" , "ZI -ll", "ZI-df", "NB AIC", "NB -ll", "NB df")
+rownames(fit_df) <- row_names
+
+#First cell "" can be labeled anything but I tried to put what each mother contained 
+model_1_combo_drop_nieve<- c("Cohort + Age", ZI_aic_1, ZI_ll_1, ZI_df_1, NB_aic_1, NB_ll_1, NB_df_1)
+model_2_combo_drop_nieve<- c("Cohort + Batch", ZI_aic_2, ZI_ll_2, ZI_df_2, NB_aic_2, NB_ll_2, NB_df_2)
+model_3_combo_drop_nieve<- c("Cohort +Non Zero Gene Counts", ZI_aic_3, ZI_ll_3, ZI_df_3, NB_aic_3, NB_ll_3, NB_df_3)
+model_4_combo_drop_nieve<- c("Cohort + Total Gene Counts", ZI_aic_4, ZI_ll_4, ZI_df_4, NB_aic_4, NB_ll_4, NB_df_4)
+model_5_combo_drop_nieve<- c("Cohort + Non Zero Gene Counts + Total Gene Counts",ZI_aic_5, ZI_ll_5, ZI_df_5, NB_aic_5, NB_ll_5, NB_df_5)
+model_6_combo_drop_nieve<- c("Cohort + Batch + Non Zero Gene Counts + Total Gene Counts + Gene Level", ZI_aic_6, ZI_ll_6, ZI_df_6, NB_aic_6, NB_ll_6, NB_df_6)
+model_7_combo_drop_nieve<- c("Cohort + Non Zero Gene Counts + Total Gene Counts + Gene Level", ZI_aic_7, ZI_ll_7, ZI_df_7, NB_aic_7, NB_ll_7, NB_df_7)
+model_8_combo_drop_nieve<- c("Cohort + Non Zero Gene Counts + Total Gene Counts + Gene Level+ Age + Sex + Race", ZI_aic_8, ZI_ll_8, ZI_df_8, NB_aic_8, NB_ll_8, NB_df_8)
+model_9_combo_drop_nieve<- c("Cohort + Non Zero Gene Counts + Total Gene Counts + Age + Sex + Race", ZI_aic_9, ZI_ll_9, ZI_df_9, NB_aic_9, NB_ll_9, NB_df_9)
+model_10_combo_drop_nieve<- c("Cohort + Non Zero Gene Counts + Age + Sex + Race", ZI_aic_10, ZI_ll_10, ZI_df_10, NB_aic_10, NB_ll_10, NB_df_10)
+model_11_combo_drop_nieve<- c("Cohort + Pleocytosis", ZI_aic_11, ZI_ll_11, ZI_df_11, NB_aic_11, NB_ll_11, NB_df_11)
+model_12_combo_drop_nieve<- c("Cohort + Quartiles of Freezer Time", ZI_aic_12, ZI_ll_12, ZI_df_12, NB_aic_12, NB_ll_12, NB_df_12)
+model_14_combo_drop_nieve<- c("Cohort + Enhancing Lesino within 30 days", ZI_aic_14, ZI_ll_14, ZI_df_14, NB_aic_14, NB_ll_14, NB_df_14)
+
+fit_df$model1_combo_drop_nieve<- model_1_combo_drop_nieve
+fit_df$model2_combo_drop_nieve<- model_2_combo_drop_nieve
+fit_df$model3_combo_drop_nieve<- model_3_combo_drop_nieve
+fit_df$model4_combo_drop_nieve<- model_4_combo_drop_nieve
+fit_df$model11_combo_drop_nieve<- model_11_combo_drop_nieve
+fit_df$model12_combo_drop_nieve<- model_12_combo_drop_nieve
+fit_df$model14_combo_drop_nieve<- model_14_combo_drop_nieve
+fit_df$model5_combo_drop_nieve<- model_5_combo_drop_nieve
+fit_df$model6_combo_drop_nieve<- model_6_combo_drop_nieve
+fit_df$model7_combo_drop_nieve<- model_7_combo_drop_nieve
+fit_df$model8_combo_drop_nieve<- model_8_combo_drop_nieve
+fit_df$model9_combo_drop_nieve<- model_9_combo_drop_nieve
+fit_df$model10_combo_drop_nieve<- model_10_combo_drop_nieve
+
+row1 <- fit_df[3, -14]  
+row2 <- fit_df[6, -14]  
+row1 <- as.numeric(row1)
+row2 <- as.numeric(row2)
+
+# Perform subtraction, this will give you the difference in the -2 logliklihood wihch is the statistic which you could in theory run a LR test on but these models aren't nested so cant technically do it 
+result_row <- 2*(row1 - row2)
+
+result_df_combo_drop_nieve_cohort<- as.data.frame(t(result_row))
+colnames(result_df_combo_drop_nieve_cohort) <- colnames(fit_df)  # Match column names
+rownames(result_df_combo_drop_nieve_cohort)[1] <- "Difference in LL"
+
+# Bind the new row (differce in the negative 2 ll) to the original DataFrame
+combo_ModelCompare_drop_nieve_cohort<- rbind(fit_df, result_df_combo_drop_nieve_cohort)
+
+write.csv(combo_ModelCompare_drop_nieve_cohort, file = "~/NSvsMS_24_12_30/model_fiting_table_combo_drop_nieve_cohort.csv", row.names = TRUE)
+
+```
+
+
+
