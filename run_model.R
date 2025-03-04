@@ -1,13 +1,21 @@
-run_model <- function(yData, xDataFormula, maxIterOptimize = 400) {
+run_model <- function(yData, xDataFormula, maxIterOptimize = 400, V = NULL) {
 
   run_zinbFit <- function(zeroInflation) {
     zinbFit(
       yData,
       K = 2,
-      X = model.matrix(
-        xDataFormula,
-        data = colData(se_combo_drop_nieve)
-      ),
+      X = if (is.null(V)) {
+        model.matrix(
+          xDataFormula,
+          data = colData(se_combo_drop_nieve)
+        )
+      } else {
+        model.matrix(
+          xDataFormula,
+          data = colData(se_combo_drop_nieve),
+          V = V
+        )
+      },
       BPPARAM = BiocParallel::SerialParam(),
       maxiter.optimize = maxIterOptimize,
       verbose = FALSE,
