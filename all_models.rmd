@@ -22,40 +22,20 @@ knitr::opts_chunk$set(echo = TRUE)
 ```
 
 ```{r load in MS Data}
-
 setwd("~/dev/r/greer_models")
-source('load_data.R')
+source("load_data.R")
 loaded_data <- load_data("./data/gene_count_lazar_1000.csv", "./data/meta_data_lazar.csv")
+
 meta_MS <- loaded_data$meta_MS
 matrix_ms_predrop <- loaded_data$matrix_ms_predrop
-
 ```
 
-```{r combine ms and ns matrix, and drop zero genes}
+```{r combine ms and ns matrix, and drop zero genes and making some edits to variables so there is no missing variables}
+source("prepare_data.R")
+prepared_data <- prepare_data(matrix_ms_predrop, meta_MS)
 
-#dropping zero genes
-row_sums_combo <- rowSums(matrix_ms_predrop)
-zero_row_names_combo <- rownames(matrix_ms_predrop)[row_sums_combo == 0]
-print(matrix_ms_predrop)
-matrix_combo_ms_ns_drop <- matrix_ms_predrop[rowSums(matrix_ms_predrop) != 0, ]
-
-#checking if there are zero sum rows
-row_sums_combo_drop <- rowSums(matrix_ms_predrop)
-zero_row_names_combo_after_drop <- rownames(matrix_ms_predrop)[rowSums(matrix_ms_predrop) == 0]
-print(zero_row_names_combo_after_drop)
-```
-
-```{r making some edits to variables so there is no missing variables}
-
-print(addmargins(table(meta_MS$pleocytosis)))
-meta_MS$pleocytosis[is.na(meta_MS$pleocytosis)] <- 3
-
-print(addmargins(table(meta_MS$enhancing)))
-meta_MS$enhancing[is.na(meta_MS$enhancing)] <- "Missing"
-
-print(addmargins(table(meta_MS$immunetherapyattimeoflp)))
-meta_MS$immunetherapyattimeoflp[is.na(meta_MS$immunetherapyattimeoflp)] <- 2
-
+meta_MS <- prepared_data$meta_MS
+matrix_combo_ms_ns_drop <- prepared_data$matrix_combo_ms_ns_drop
 ```
 
 #Make a Summarized Experiment Object
@@ -79,7 +59,7 @@ categorize_quartile_total <- function(value, quartiles_total) {
   }
 }
 
-#Add that quartile variable to the Summarized Experiment object 
+#Add that quartile variable to the Summarized Experiment object
 se_combo_drop_nieve$Quartiletotal <- sapply(se_combo_drop_nieve$totaltranscripts, categorize_quartile_total, quartiles_total = quartiles_total)
 
 #numnonzero quartiles
@@ -97,7 +77,7 @@ categorize_quartile <- function(value, quartiles) {
   }
 }
 
-#Add that quartile variable to the Summarized Experiment object 
+#Add that quartile variable to the Summarized Experiment object
 se_combo_drop_nieve$Quartilenonzero <- sapply(se_combo_drop_nieve$numnonzero, categorize_quartile, quartiles = quartiles)
 
 
@@ -116,7 +96,7 @@ categorize_quartile <- function(value, quartiles) {
   }
 }
 
-#Add that quartile variable to the Summarized Experiment object 
+#Add that quartile variable to the Summarized Experiment object
 se_combo_drop_nieve$Quartilefreezer <- sapply(se_combo_drop_nieve$coll_to_seq, categorize_quartile, quartiles = quartiles)
 
 ```
