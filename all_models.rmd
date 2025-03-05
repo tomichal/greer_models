@@ -230,7 +230,7 @@ for (i in seq_along(model_definitions)) {
     maxIterOptimize = model_definitions[[i]]$maxIterOptimize,
     V = model_definitions[[i]]$V
   )
-  fit_df[[paste0("model_", batch_1[[i]]$name, "_combo_drop_nieve")]] <- c(
+  fit_df[[paste0("model_", model_definitions[[i]]$name, "_combo_drop_nieve")]] <- c(
     model_definitions[[i]]$title,
     result$ZI_aic,
     result$ZI_ll,
