@@ -25,8 +25,8 @@ knitr::opts_chunk$set(echo = TRUE)
 setwd("~/dev/r/greer_models")
 source("load_data.R")
 loaded_data <- load_data(
-  "./data/gene_count_lazar_1000.csv",
-  "./data/meta_data_lazar.csv"
+  "./input/gene_count_lazar_1000.csv",
+  "./input/meta_data_lazar.csv"
 )
 meta_MS <- loaded_data$meta_MS
 matrix_ms_predrop <- loaded_data$matrix_ms_predrop
@@ -256,7 +256,11 @@ rownames(result_df_combo_drop_nieve_cohort)[1] <- "Difference in LL"
 # Bind the new row (differce in the negative 2 ll) to the original DataFrame
 combo_ModelCompare_drop_nieve_cohort <- rbind(fit_df, result_df_combo_drop_nieve_cohort)
 
-write.csv(combo_ModelCompare_drop_nieve_cohort, file = "./NSvsMS_24_12_30/model_fiting_table_combo_drop_nieve_cohort_NEW.csv", row.names = TRUE)
+# Create './output' folder if it does not exist
+if (!dir.exists("./output")) {
+  dir.create("./output", showWarnings = FALSE)
+}
+write.csv(combo_ModelCompare_drop_nieve_cohort, file = "./output/model_fiting_table_combo_drop_nieve_cohort_NEW.csv", row.names = TRUE)
 
 ```
 
