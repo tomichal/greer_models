@@ -45,24 +45,6 @@ source("summarized_experiment.R")
 se_combo_drop_nieve <- summarized_experiment(matrix_combo_ms_ns_drop, meta_MS)
 ```
 
-```{r Add additional data for some of the models}
-se_combo_drop_nieve_with_added_data <- se_combo_drop_nieve
-mart <- useMart("ensembl")
-mart <- useDataset("hsapiens_gene_ensembl", mart = mart)
-bm <- getBM(
-  attributes = c('hgnc_symbol', 'start_position', 'end_position', 'percentage_gene_gc_content'),
-  filters = 'hgnc_symbol',
-  values = rownames(se_combo_drop_nieve_with_added_data),
-  mart = mart
-)
-bm$length <- bm$end_position - bm$start_position
-len <- tapply(bm$length, bm$hgnc_symbol, mean)
-len <- len[rownames(se_combo_drop_nieve_with_added_data)]
-gcc <- tapply(bm$percentage_gene_gc_content, bm$hgnc_symbol, mean)
-gcc <- gcc[rownames(se_combo_drop_nieve_with_added_data)]
-rowData(se_combo_drop_nieve_with_added_data) <- data.frame(gccontent = gcc, length = len)
-```
-
 ```{r import run_model function}
 source("run_model.R")
 ```
@@ -123,64 +105,6 @@ model_definitions <- list(
       se_combo_drop_nieve$batch),
     maxIterOptimize = 400
   ),
-  #Model 7 adding gene level data
-  list(
-    name = "7",
-    title = "Cohort + Non Zero Gene Counts + Total Gene Counts + Gene Level",
-    Y = se_combo_drop_nieve_with_added_data,
-    xFormula = (
-      ~se_combo_drop_nieve$cohort +
-        se_combo_drop_nieve$Quartilenonzero +
-        se_combo_drop_nieve$Quartiletotal
-    ),
-    V = (~pc_genes$gcc + pc_genes$length),
-    maxIterOptimize = 400
-  ),
-  #Model 8 adding gender and age with gene level data
-  list(
-    name = "8",
-    title = "Cohort + Non Zero Gene Counts + Total Gene Counts + Gene Level+ Age + Sex + Race",
-    Y = se_combo_drop_nieve_with_added_data,
-    xFormula = (
-      ~se_combo_drop_nieve$cohort +
-        se_combo_drop_nieve$sex +
-        se_combo_drop_nieve$race +
-        se_combo_drop_nieve$Quartiletotal +
-        se_combo_drop_nieve$Quartilenonzero +
-        se_combo_drop_nieve$age_at_csf
-    ),
-    V = (~pc_genes$gcc + pc_genes$length),
-    maxIterOptimize = 400
-  ),
-  #Model 9 adding gender and age without gene level data
-  list(
-    name = "9",
-    title = "Cohort + Non Zero Gene Counts + Total Gene Counts + Age + Sex + Race",
-    Y = se_combo_drop_nieve_with_added_data,
-    xFormula = (
-      ~se_combo_drop_nieve$cohort +
-        se_combo_drop_nieve$sex +
-        se_combo_drop_nieve$race +
-        se_combo_drop_nieve$Quartilenonzero +
-        se_combo_drop_nieve$Quartiletotal +
-        se_combo_drop_nieve$age_at_csf
-    ),
-    maxIterOptimize = 400
-  ),
-  #Model 10 adding gender and age without gene level data and without total transcripts
-  list(
-    name = "10",
-    title = "Cohort + Non Zero Gene Counts + Age + Sex + Race",
-    Y = se_combo_drop_nieve_with_added_data,
-    xFormula = (
-      ~se_combo_drop_nieve$cohort +
-        se_combo_drop_nieve$sex +
-        se_combo_drop_nieve$race +
-        se_combo_drop_nieve$Quartilenonzero +
-        se_combo_drop_nieve$age_at_csf
-    ),
-    maxIterOptimize = 400
-  ),
   #Model 11 (freezer time)
   list(
     name = "11",
@@ -204,6 +128,90 @@ model_definitions <- list(
     Y = se_combo_drop_nieve,
     xFormula = (~se_combo_drop_nieve$cohort + se_combo_drop_nieve$enhancing),
     maxIterOptimize = 400
+  )
+)
+```
+
+```{r Add additional data for some of the models}
+se_combo_drop_nieve_with_added_data <- se_combo_drop_nieve
+mart <- useMart("ensembl")
+mart <- useDataset("hsapiens_gene_ensembl", mart = mart)
+bm <- getBM(
+  attributes = c('hgnc_symbol', 'start_position', 'end_position', 'percentage_gene_gc_content'),
+  filters = 'hgnc_symbol',
+  values = rownames(se_combo_drop_nieve_with_added_data),
+  mart = mart
+)
+bm$length <- bm$end_position - bm$start_position
+len <- tapply(bm$length, bm$hgnc_symbol, mean)
+len <- len[rownames(se_combo_drop_nieve_with_added_data)]
+gcc <- tapply(bm$percentage_gene_gc_content, bm$hgnc_symbol, mean)
+gcc <- gcc[rownames(se_combo_drop_nieve_with_added_data)]
+rowData(se_combo_drop_nieve_with_added_data) <- data.frame(gccontent = gcc, length = len)
+```
+
+```{r model definitions with enhanced data}
+model_definitions <- c(
+  model_definitions,
+  list(
+    #Model 7 adding gene level data
+    list(
+      name = "7",
+      title = "Cohort + Non Zero Gene Counts + Total Gene Counts + Gene Level",
+      Y = se_combo_drop_nieve_with_added_data,
+      xFormula = (
+        ~se_combo_drop_nieve$cohort +
+          se_combo_drop_nieve$Quartilenonzero +
+          se_combo_drop_nieve$Quartiletotal
+      ),
+      V = (~pc_genes$gcc + pc_genes$length),
+      maxIterOptimize = 400
+    ),
+    #Model 8 adding gender and age with gene level data
+    list(
+      name = "8",
+      title = "Cohort + Non Zero Gene Counts + Total Gene Counts + Gene Level+ Age + Sex + Race",
+      Y = se_combo_drop_nieve_with_added_data,
+      xFormula = (
+        ~se_combo_drop_nieve$cohort +
+          se_combo_drop_nieve$sex +
+          se_combo_drop_nieve$race +
+          se_combo_drop_nieve$Quartiletotal +
+          se_combo_drop_nieve$Quartilenonzero +
+          se_combo_drop_nieve$age_at_csf
+      ),
+      V = (~pc_genes$gcc + pc_genes$length),
+      maxIterOptimize = 400
+    ),
+    #Model 9 adding gender and age without gene level data
+    list(
+      name = "9",
+      title = "Cohort + Non Zero Gene Counts + Total Gene Counts + Age + Sex + Race",
+      Y = se_combo_drop_nieve_with_added_data,
+      xFormula = (
+        ~se_combo_drop_nieve$cohort +
+          se_combo_drop_nieve$sex +
+          se_combo_drop_nieve$race +
+          se_combo_drop_nieve$Quartilenonzero +
+          se_combo_drop_nieve$Quartiletotal +
+          se_combo_drop_nieve$age_at_csf
+      ),
+      maxIterOptimize = 400
+    ),
+    #Model 10 adding gender and age without gene level data and without total transcripts
+    list(
+      name = "10",
+      title = "Cohort + Non Zero Gene Counts + Age + Sex + Race",
+      Y = se_combo_drop_nieve_with_added_data,
+      xFormula = (
+        ~se_combo_drop_nieve$cohort +
+          se_combo_drop_nieve$sex +
+          se_combo_drop_nieve$race +
+          se_combo_drop_nieve$Quartilenonzero +
+          se_combo_drop_nieve$age_at_csf
+      ),
+      maxIterOptimize = 400
+    )
   )
 )
 ```
