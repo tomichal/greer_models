@@ -31,6 +31,7 @@ loaded_data <- load_data(
 )
 meta_MS <- loaded_data$meta_MS
 matrix_ms_predrop <- loaded_data$matrix_ms_predrop
+pc_genes <- loaded_data$pc_genes
 ```
 
 ```{r combine ms and ns matrix, and drop zero genes and making some edits to variables so there is no missing variables}
@@ -52,7 +53,6 @@ source("run_model.R")
 # Model definitions
 
 ```{r Model definitions}
-
 meta_ms_cols <- c(
   "age_at_csf",
   "sex",
@@ -69,190 +69,41 @@ meta_ms_cols <- c(
 )
 
 combinations <- list()
-formula_fragments <- list()
+model_definitions <- list()
 sequence <- 1:length(meta_ms_cols)
 for (i in sequence) {
   combination_matrix <- combn(meta_ms_cols, i, simplify = TRUE)
   new_combinations <- split(combination_matrix, col(combination_matrix))
   combinations <- c(combinations, new_combinations)
 }
-for (cmb in combinations) {
-  formula_fragments <- c(formula_fragments, list(reformulate(termlabels = paste0("se_combo_drop_nieve$", cmb))))
-}
-
-# TODO:
-# 1. Somehow store the list of columns used in the formula so that that can be used in naming later,
-# 2. Add the combination of the formulas WITH and WITHOUT the V that consists of the gcc and length from the pc_genes
-# 3. Adapt the model running code to use the dynamically formulated terms.
-# 4. Automatically highlight the model that is "best" -- based on what Greer said is the criteria.
-
-
-
-
-model_definitions <- list(
-  # Crude Model (Model 1, univariate age)
-  list(
-    name = "1",
-    title = "Cohort + Age",
-    Y = se_combo_drop_nieve,
-    xFormula = (~se_combo_drop_nieve$cohort + se_combo_drop_nieve$age_at_csf),
-    maxIterOptimize = 400
-  ),
-  # Model2 (univariate batch)
-  list(
-    name = "2",
-    title = "Cohort + Batch",
-    Y = se_combo_drop_nieve,
-    xFormula = (~se_combo_drop_nieve$cohort + se_combo_drop_nieve$batch),
-    maxIterOptimize = 400
-  ),
-  #Model 3 (univariate non-zero gene count)
-  list(
-    name = "3",
-    title = "Cohort +Non Zero Gene Counts",
-    Y = se_combo_drop_nieve,
-    xFormula = (~se_combo_drop_nieve$cohort + se_combo_drop_nieve$Quartilenonzero),
-    maxIterOptimize = 25
-  ),
-  #Model 4 univariate totalcounts
-  list(
-    name = "4",
-    title = "Cohort + Total Gene Counts",
-    Y = se_combo_drop_nieve,
-    xFormula = (~se_combo_drop_nieve$cohort + se_combo_drop_nieve$Quartiletotal),
-    maxIterOptimize = 400
-  ),
-  #Model 5 (nonzero and totaltranscripts)
-  list(
-    name = "5",
-    title = "Cohort + Non Zero Gene Counts + Total Gene Counts",
-    Y = se_combo_drop_nieve,
-    xFormula = (~se_combo_drop_nieve$cohort +
-      se_combo_drop_nieve$Quartiletotal +
-      se_combo_drop_nieve$Quartilenonzero),
-    maxIterOptimize = 400
-  ),
-  #Model 6 (nonzero and totaltranscripts and batch)
-  list(
-    name = "6",
-    title = "Cohort + Batch + Non Zero Gene Counts + Total Gene Counts + Gene Level",
-    Y = se_combo_drop_nieve,
-    xFormula = (~se_combo_drop_nieve$cohort +
-      se_combo_drop_nieve$Quartiletotal +
-      se_combo_drop_nieve$Quartilenonzero +
-      se_combo_drop_nieve$batch),
-    maxIterOptimize = 400
-  ),
-  #Model 11 (freezer time)
-  list(
-    name = "11",
-    title = "Cohort + Pleocytosis",
-    Y = se_combo_drop_nieve,
-    xFormula = (~se_combo_drop_nieve$cohort + se_combo_drop_nieve$Quartilefreezer),
-    maxIterOptimize = 400
-  ),
-  #Model 12 (pleocytosis)
-  list(
-    name = "12",
-    title = "Cohort + Quartiles of Freezer Time",
-    Y = se_combo_drop_nieve,
-    xFormula = (~se_combo_drop_nieve$cohort + se_combo_drop_nieve$pleocytosis),
-    maxIterOptimize = 400
-  ),
-  #Model 14 (enhancing)
-  list(
-    name = "14",
-    title = "Cohort + Enhancing Lesino within 30 days",
-    Y = se_combo_drop_nieve,
-    xFormula = (~se_combo_drop_nieve$cohort + se_combo_drop_nieve$enhancing),
-    maxIterOptimize = 400
-  )
-)
-```
-
-```{r Add additional data for some of the models}
-se_combo_drop_nieve_with_added_data <- se_combo_drop_nieve
-mart <- useMart("ensembl")
-mart <- useDataset("hsapiens_gene_ensembl", mart = mart)
-bm <- getBM(
-  attributes = c('hgnc_symbol', 'start_position', 'end_position', 'percentage_gene_gc_content'),
-  filters = 'hgnc_symbol',
-  values = rownames(se_combo_drop_nieve_with_added_data),
-  mart = mart
-)
-bm$length <- bm$end_position - bm$start_position
-len <- tapply(bm$length, bm$hgnc_symbol, mean)
-len <- len[rownames(se_combo_drop_nieve_with_added_data)]
-gcc <- tapply(bm$percentage_gene_gc_content, bm$hgnc_symbol, mean)
-gcc <- gcc[rownames(se_combo_drop_nieve_with_added_data)]
-rowData(se_combo_drop_nieve_with_added_data) <- data.frame(gccontent = gcc, length = len)
-```
-
-```{r model definitions with enhanced data}
-model_definitions <- c(
-  model_definitions,
-  list(
-    #Model 7 adding gene level data
+for (attrs in combinations) {
+  formula_x <- reformulate(termlabels = paste0("se_combo_drop_nieve$", attrs))
+  model_definitions <- c(
+    model_definitions,
     list(
-      name = "7",
-      title = "Cohort + Non Zero Gene Counts + Total Gene Counts + Gene Level",
-      Y = se_combo_drop_nieve_with_added_data,
-      xFormula = (
-        ~se_combo_drop_nieve$cohort +
-          se_combo_drop_nieve$Quartilenonzero +
-          se_combo_drop_nieve$Quartiletotal
-      ),
-      V = (~pc_genes$gcc + pc_genes$length),
-      maxIterOptimize = 400
-    ),
-    #Model 8 adding gender and age with gene level data
-    list(
-      name = "8",
-      title = "Cohort + Non Zero Gene Counts + Total Gene Counts + Gene Level+ Age + Sex + Race",
-      Y = se_combo_drop_nieve_with_added_data,
-      xFormula = (
-        ~se_combo_drop_nieve$cohort +
-          se_combo_drop_nieve$sex +
-          se_combo_drop_nieve$race +
-          se_combo_drop_nieve$Quartiletotal +
-          se_combo_drop_nieve$Quartilenonzero +
-          se_combo_drop_nieve$age_at_csf
-      ),
-      V = (~pc_genes$gcc + pc_genes$length),
-      maxIterOptimize = 400
-    ),
-    #Model 9 adding gender and age without gene level data
-    list(
-      name = "9",
-      title = "Cohort + Non Zero Gene Counts + Total Gene Counts + Age + Sex + Race",
-      Y = se_combo_drop_nieve_with_added_data,
-      xFormula = (
-        ~se_combo_drop_nieve$cohort +
-          se_combo_drop_nieve$sex +
-          se_combo_drop_nieve$race +
-          se_combo_drop_nieve$Quartilenonzero +
-          se_combo_drop_nieve$Quartiletotal +
-          se_combo_drop_nieve$age_at_csf
-      ),
-      maxIterOptimize = 400
-    ),
-    #Model 10 adding gender and age without gene level data and without total transcripts
-    list(
-      name = "10",
-      title = "Cohort + Non Zero Gene Counts + Age + Sex + Race",
-      Y = se_combo_drop_nieve_with_added_data,
-      xFormula = (
-        ~se_combo_drop_nieve$cohort +
-          se_combo_drop_nieve$sex +
-          se_combo_drop_nieve$race +
-          se_combo_drop_nieve$Quartilenonzero +
-          se_combo_drop_nieve$age_at_csf
-      ),
-      maxIterOptimize = 400
+      list(
+        attrs = attrs,
+        name = paste(attrs, collapse = "_"),
+        title = paste(attrs, collapse = " + "),
+        formula_x = formula_x,
+        formula_v = NULL
+      )
     )
   )
-)
+}
+
+
+
+# TODO:
+# 3. Adapt the model running code to use the dynamically formulated terms.
+# 2. Add the combination of the formulas WITH and WITHOUT the V that consists of the gcc and length from the pc_genes
+# 4. Automatically highlight the model that is "best" -- based on what Greer said is the criteria.
+
 ```
+
+
+
+
 
 #Running Models and Making Table for AIC and ll
 ```{r running models and making table output of AIC other parameters}
@@ -262,21 +113,25 @@ row_names <- c("Models", "ZI AIC", "ZI -ll", "ZI-df", "NB AIC", "NB -ll", "NB df
 rownames(fit_df) <- row_names
 
 for (i in seq_along(model_definitions)) {
-  result <- run_model(
-    Y = model_definitions[[i]]$Y,
-    xFormula = model_definitions[[i]]$xFormula,
-    maxIterOptimize = model_definitions[[i]]$maxIterOptimize,
-    V = model_definitions[[i]]$V
-  )
-  fit_df[[paste0("model_", model_definitions[[i]]$name, "_combo_drop_nieve")]] <- c(
-    model_definitions[[i]]$title,
-    result$ZI_aic,
-    result$ZI_ll,
-    result$ZI_df,
-    result$NB_aic,
-    result$NB_ll,
-    result$NB_df
-  )
+  for (formula_v in list(NULL, (~pc_genes$gcc + pc_genes$length))) {
+    name <- model_definitions[[i]]$name
+    title <- model_definitions[[i]]$title
+    result <- run_model(
+      Y = se_combo_drop_nieve,
+      xFormula = model_definitions[[i]]$formula_x,
+      maxIterOptimize = 400,
+      V = formula_v
+    )
+    fit_df[[paste0("model_", name, "_combo_drop_nieve")]] <- c(
+      title,
+      result$ZI_aic,
+      result$ZI_ll,
+      result$ZI_df,
+      result$NB_aic,
+      result$NB_ll,
+      result$NB_df
+    )
+  }
 }
 
 row1 <- fit_df[3, -14]
