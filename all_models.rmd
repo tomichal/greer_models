@@ -21,7 +21,7 @@ library(dplyr)
 knitr::opts_chunk$set(echo = TRUE)
 ```
 
-```{r load in MS Data}
+```{r Initialize}
 setwd("~/dev/r/greer_models")
 source("load_data.R")
 loaded_data <- load_data(
@@ -32,27 +32,21 @@ loaded_data <- load_data(
 meta_MS <- loaded_data$meta_MS
 matrix_ms_predrop <- loaded_data$matrix_ms_predrop
 pc_genes <- loaded_data$pc_genes
-```
 
-```{r combine ms and ns matrix, and drop zero genes and making some edits to variables so there is no missing variables}
 source("prepare_data.R")
 prepared_data <- prepare_data(matrix_ms_predrop, meta_MS)
 
 meta_MS <- prepared_data$meta_MS
 matrix_combo_ms_ns_drop <- prepared_data$matrix_combo_ms_ns_drop
-```
 
-```{r Make a summarized Experiment object}
 source("summarized_experiment.R")
 se_combo_drop_nieve <- summarized_experiment(matrix_combo_ms_ns_drop, meta_MS)
-```
 
-```{r import run_model function}
 source("run_model.R")
 ```
-# Model definitions
 
-```{r Model definitions}
+
+```{r Model Definitions}
 meta_ms_cols <- c(
   "age_at_csf",
   "sex",
@@ -85,28 +79,14 @@ for (attrs in combinations) {
         attrs = attrs,
         name = paste(attrs, collapse = "_"),
         title = paste(attrs, collapse = " + "),
-        formula_x = formula_x,
-        formula_v = NULL
+        formula_x = formula_x
       )
     )
   )
 }
-
-
-
-# TODO:
-# 3. Adapt the model running code to use the dynamically formulated terms.
-# 2. Add the combination of the formulas WITH and WITHOUT the V that consists of the gcc and length from the pc_genes
-# 4. Automatically highlight the model that is "best" -- based on what Greer said is the criteria.
-
 ```
 
-
-
-
-
-#Running Models and Making Table for AIC and ll
-```{r running models and making table output of AIC other parameters}
+```{r Running Models and Making Table for AIC and ll}
 num_rows <- 7
 fit_df <- data.frame(matrix(ncol = 0, nrow = num_rows))
 row_names <- c("Models", "ZI AIC", "ZI -ll", "ZI-df", "NB AIC", "NB -ll", "NB df")
@@ -155,6 +135,8 @@ if (!dir.exists("./output")) {
 }
 write.csv(combo_ModelCompare_drop_nieve_cohort, file = "./output/model_fiting_table_combo_drop_nieve_cohort_NEW.csv", row.names = TRUE)
 
+# TODO:
+# 4. Automatically highlight the model that is "best" -- based on what Greer said is the criteria.
 ```
 
 
