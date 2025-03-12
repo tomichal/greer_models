@@ -134,7 +134,7 @@ if (!dir.exists("./output")) {
 }
 
 combo_ModelCompare_drop_nieve_cohort <- combo_ModelCompare_drop_nieve_cohort[,
-        order(as.numeric(combo_ModelCompare_drop_nieve_cohort["ZI AIC", ]))]
+        order(as.numeric(combo_ModelCompare_drop_nieve_cohort["ZI AIC",]))]
 
 write.csv(combo_ModelCompare_drop_nieve_cohort, file = "./output/model_fiting_table_combo_drop_nieve_cohort_NEW.csv", row.names = TRUE)
 
