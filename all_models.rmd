@@ -92,13 +92,16 @@ fit_df <- data.frame(matrix(ncol = 0, nrow = num_rows))
 row_names <- c("Models", "ZI AIC", "ZI -ll", "ZI-df", "NB AIC", "NB -ll", "NB df")
 rownames(fit_df) <- row_names
 
-for (i in seq_along(model_definitions)) {
+# for (i in seq_along(model_definitions)) {
+for (i in list(1000)) {
   for (formula_v in list(NULL, (~pc_genes$gcc + pc_genes$length))) {
-    name <- model_definitions[[i]]$name
-    title <- model_definitions[[i]]$title
+    name <- if (!is.null(formula_v)) paste(model_definitions[[i]]$name, "with_pc_genes", sep = "_") else model_definitions[[i]]$name
+    title <- if (!is.null(formula_v)) paste(model_definitions[[i]]$title, "with pc genes", sep = " ") else model_definitions[[i]]$title
+    formula_x <- model_definitions[[i]]$formula_x
+
     result <- run_model(
       Y = se_combo_drop_nieve,
-      xFormula = model_definitions[[i]]$formula_x,
+      xFormula = formula_x,
       maxIterOptimize = 400,
       V = formula_v
     )
