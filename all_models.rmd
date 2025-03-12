@@ -113,8 +113,8 @@ for (i in seq_along(model_definitions)) {
   }
 }
 
-row1 <- fit_df[3,-14]
-row2 <- fit_df[6,-14]
+row1 <- fit_df[3, -14]
+row2 <- fit_df[6, -14]
 row1 <- as.numeric(row1)
 row2 <- as.numeric(row2)
 
