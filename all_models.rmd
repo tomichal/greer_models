@@ -7,7 +7,8 @@ output: html_document
 
 #you will need to input your paths in the first chunk and in all the chunks for the models you need to input your data in the model matrix and then the last chuck you need to put the output path for the csv of the model fitting results; you will also need the tsv file of "biomart_protein_coding_genes_withgeneinfo.tsv" loaded into your working directory#
 
-```{r setup, include=FALSE}
+
+```{r Initialize}
 library(BiocParallel)
 library(rmarkdown)
 library(knitr)
@@ -19,14 +20,9 @@ library(biomaRt)
 library(dplyr)
 
 knitr::opts_chunk$set(echo = TRUE)
-```
 
-```{r Initialize}
 setwd("~/dev/r/greer_models")
-source("load_data.R")
-source("prepare_data.R")
-source("summarized_experiment.R")
-source("run_model.R")
+source("functions.R")
 
 loaded_data <- load_data(
   "./input/meta_data_lazar.csv",
@@ -92,7 +88,7 @@ fit_df <- data.frame(matrix(ncol = 0, nrow = num_rows))
 row_names <- c("Models", "ZI AIC", "ZI -ll", "ZI-df", "NB AIC", "NB -ll", "NB df")
 rownames(fit_df) <- row_names
 
-# for (i in list(118,117,1,2)) {
+# for (i in list(1,2)) {
 for (i in seq_along(model_definitions)) {
   for (formula_v in list(NULL, (~pc_genes$gcc + pc_genes$length))) {
     name <- if (!is.null(formula_v)) paste(model_definitions[[i]]$name, "with_pc_genes", sep = "_") else model_definitions[[i]]$name
@@ -117,8 +113,8 @@ for (i in seq_along(model_definitions)) {
   }
 }
 
-row1 <- fit_df[3, -14]
-row2 <- fit_df[6, -14]
+row1 <- fit_df[3,]
+row2 <- fit_df[6,]
 row1 <- as.numeric(row1)
 row2 <- as.numeric(row2)
 
