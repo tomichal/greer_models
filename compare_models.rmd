@@ -11,8 +11,8 @@ output: html_document
 load_data <- function(metadata_filepath, counts_filepath, pc_genes_filepath) {
   ms_counts <- read_csv(counts_filepath)
   counts <- ms_counts %>%
-          as.data.frame() %>%
-          column_to_rownames(var = "...1")
+    as.data.frame() %>%
+    column_to_rownames(var = "...1")
 
   meta_MS <- read_csv(metadata_filepath)
 
@@ -25,10 +25,10 @@ load_data <- function(metadata_filepath, counts_filepath, pc_genes_filepath) {
   pc_genes <- read_csv(pc_genes_filepath)
 
   list(
-          # counts = counts,
-          meta_MS = meta_MS,
-          matrix_ms_predrop = matrix_ms_predrop,
-          pc_genes = pc_genes
+    # counts = counts,
+    meta_MS = meta_MS,
+    matrix_ms_predrop = matrix_ms_predrop,
+    pc_genes = pc_genes
   )
 }
 
@@ -56,8 +56,8 @@ prepare_data <- function(matrix_ms_predrop, meta_MS) {
 
   # Return the processed data
   list(
-          matrix_combo_ms_ns_drop = matrix_combo_ms_ns_drop,
-          meta_MS = meta_MS
+    matrix_combo_ms_ns_drop = matrix_combo_ms_ns_drop,
+    meta_MS = meta_MS
   )
 }
 
@@ -65,24 +65,24 @@ run_model <- function(Y, xFormula, maxIterOptimize = 400, V = NULL) {
 
   run_zinbFit <- function(zeroInflation) {
     zinbFit(
-            Y,
-            K = 2,
-            X = if (is.null(V)) {
-              model.matrix(
-                      xFormula,
-                      data = colData(se_combo_drop_nieve)
-              )
-            } else {
-              model.matrix(
-                      xFormula,
-                      data = colData(se_combo_drop_nieve),
-                      V = V
-              )
-            },
-            BPPARAM = BiocParallel::SerialParam(),
-            maxiter.optimize = maxIterOptimize,
-            verbose = FALSE,
-            zeroinflation = zeroInflation
+      Y,
+      K = 2,
+      X = if (is.null(V)) {
+        model.matrix(
+          xFormula,
+          data = colData(se_combo_drop_nieve)
+        )
+      } else {
+        model.matrix(
+          xFormula,
+          data = colData(se_combo_drop_nieve),
+          V = V
+        )
+      },
+      BPPARAM = BiocParallel::SerialParam(),
+      maxiter.optimize = maxIterOptimize,
+      verbose = FALSE,
+      zeroinflation = zeroInflation
     )
   }
 
@@ -99,16 +99,17 @@ run_model <- function(Y, xFormula, maxIterOptimize = 400, V = NULL) {
   NB_df <- nParams(nb_nieve_cohort)
 
   list(
-          ZI_ll = ZI_ll,
-          ZI_aic = ZI_aic,
-          ZI_df = ZI_df,
-          NB_ll = NB_ll,
-          NB_aic = NB_aic,
-          NB_df = NB_df
+    ZI_ll = ZI_ll,
+    ZI_aic = ZI_aic,
+    ZI_df = ZI_df,
+    NB_ll = NB_ll,
+    NB_aic = NB_aic,
+    NB_df = NB_df
   )
 }
 
 summarized_experiment <- function(matrix_combo_ms_ns_drop, meta_MS) {
+
   categorize_quartiles <- function(value, quartiles) {
     if (value <= quartiles[2]) {
       return("Q1")
@@ -122,34 +123,34 @@ summarized_experiment <- function(matrix_combo_ms_ns_drop, meta_MS) {
   }
 
   se_combo_drop_nieve <- SummarizedExperiment(
-          assays = list(counts = matrix_combo_ms_ns_drop), colData = data.frame(meta_MS)
+    assays = list(counts = matrix_combo_ms_ns_drop), colData = data.frame(meta_MS)
   )
 
   #Add that quartile variable to the Summarized Experiment object
   se_combo_drop_nieve$Quartiletotal <- sapply(
-          se_combo_drop_nieve$totaltranscripts,
-          categorize_quartiles,
+    se_combo_drop_nieve$totaltranscripts,
+    categorize_quartiles,
 
-          #Make Quartiles of Number of Non Zero Genes and Total Transcripts and time from collection to sequencing just for ease of model convering
-          quartiles = quantile(se_combo_drop_nieve$totaltranscripts, probs = c(0, 0.25, 0.5, 0.75, 1))
+    #Make Quartiles of Number of Non Zero Genes and Total Transcripts and time from collection to sequencing just for ease of model convering
+    quartiles = quantile(se_combo_drop_nieve$totaltranscripts, probs = c(0, 0.25, 0.5, 0.75, 1))
   )
 
   #Add that quartile variable to the Summarized Experiment object
   se_combo_drop_nieve$Quartilenonzero <- sapply(
-          se_combo_drop_nieve$numnonzero,
-          categorize_quartiles,
+    se_combo_drop_nieve$numnonzero,
+    categorize_quartiles,
 
-          #numnonzero quartiles
-          quartiles = quantile(se_combo_drop_nieve$numnonzero, probs = c(0, 0.25, 0.5, 0.75, 1))
+    #numnonzero quartiles
+    quartiles = quantile(se_combo_drop_nieve$numnonzero, probs = c(0, 0.25, 0.5, 0.75, 1))
   )
 
   #Add that quartile variable to the Summarized Experiment object
   se_combo_drop_nieve$Quartilefreezer <- sapply(
-          se_combo_drop_nieve$coll_to_seq,
-          categorize_quartiles,
+    se_combo_drop_nieve$coll_to_seq,
+    categorize_quartiles,
 
-          #freezer time quartiles
-          quartiles = quantile(se_combo_drop_nieve$coll_to_seq, probs = c(0, 0.25, 0.5, 0.75, 1))
+    #freezer time quartiles
+    quartiles = quantile(se_combo_drop_nieve$coll_to_seq, probs = c(0, 0.25, 0.5, 0.75, 1))
   )
 
   return(se_combo_drop_nieve)
@@ -232,16 +233,15 @@ for (attrs in combinations) {
 ```
 
 ```{r Running Models and Making Table for AIC and ll}
-num_rows <- 7
+row_names <- c("ZI AIC", "ZI -ll", "ZI-df", "NB AIC", "NB -ll", "NB df")
+num_rows <- length(row_names)
 fit_df <- data.frame(matrix(ncol = 0, nrow = num_rows))
-row_names <- c("Models", "ZI AIC", "ZI -ll", "ZI-df", "NB AIC", "NB -ll", "NB df")
 rownames(fit_df) <- row_names
 
-# for (i in list(1,2)) {
-for (i in seq_along(model_definitions)) {
+for (i in list(1, 2)) {
+  # for (i in seq_along(model_definitions)) {
   for (formula_v in list(NULL, (~pc_genes$gcc + pc_genes$length))) {
-    name <- if (!is.null(formula_v)) paste(model_definitions[[i]]$name, "with_pc_genes", sep = "_") else model_definitions[[i]]$name
-    title <- if (!is.null(formula_v)) paste(model_definitions[[i]]$title, "with pc genes", sep = " ") else model_definitions[[i]]$title
+    title <- if (!is.null(formula_v)) paste(model_definitions[[i]]$title, "gcc + length", sep = " + ") else model_definitions[[i]]$title
     formula_x <- model_definitions[[i]]$formula_x
 
     result <- run_model(
@@ -250,8 +250,7 @@ for (i in seq_along(model_definitions)) {
       maxIterOptimize = 400,
       V = formula_v
     )
-    fit_df[[paste0("model_", name, "_combo_drop_nieve")]] <- c(
-      title,
+    fit_df[[title]] <- c(
       result$ZI_aic,
       result$ZI_ll,
       result$ZI_df,
@@ -262,8 +261,8 @@ for (i in seq_along(model_definitions)) {
   }
 }
 
-row1 <- fit_df[3, -14]
-row2 <- fit_df[6, -14]
+row1 <- fit_df["ZI -ll",]
+row2 <- fit_df["NB -ll",]
 row1 <- as.numeric(row1)
 row2 <- as.numeric(row2)
 
@@ -283,7 +282,8 @@ if (!dir.exists("./output")) {
 }
 
 combo_ModelCompare_drop_nieve_cohort <- combo_ModelCompare_drop_nieve_cohort[,
-        order(as.numeric(combo_ModelCompare_drop_nieve_cohort["ZI AIC",]))]
+  order(as.numeric(combo_ModelCompare_drop_nieve_cohort["ZI AIC",]))
+]
 
 write.csv(combo_ModelCompare_drop_nieve_cohort, file = "./output/model_fiting_table_combo_drop_nieve_cohort_NEW.csv", row.names = TRUE)
 
