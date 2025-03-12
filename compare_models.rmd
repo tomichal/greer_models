@@ -238,8 +238,8 @@ num_rows <- length(row_names)
 fit_df <- data.frame(matrix(ncol = 0, nrow = num_rows))
 rownames(fit_df) <- row_names
 
-for (i in list(1, 2)) {
-  # for (i in seq_along(model_definitions)) {
+# for (i in list(1, 2)) {
+for (i in seq_along(model_definitions)) {
   for (formula_v in list(NULL, (~pc_genes$gcc + pc_genes$length))) {
     title <- if (!is.null(formula_v)) paste(model_definitions[[i]]$title, "gcc + length", sep = " + ") else model_definitions[[i]]$title
     formula_x <- model_definitions[[i]]$formula_x
