@@ -24,6 +24,10 @@ knitr::opts_chunk$set(echo = TRUE)
 ```{r Initialize}
 setwd("~/dev/r/greer_models")
 source("load_data.R")
+source("prepare_data.R")
+source("summarized_experiment.R")
+source("run_model.R")
+
 loaded_data <- load_data(
   "./input/meta_data_lazar.csv",
   "./input/gene_count_lazar_1000.csv",
@@ -33,16 +37,12 @@ meta_MS <- loaded_data$meta_MS
 matrix_ms_predrop <- loaded_data$matrix_ms_predrop
 pc_genes <- loaded_data$pc_genes
 
-source("prepare_data.R")
 prepared_data <- prepare_data(matrix_ms_predrop, meta_MS)
 
 meta_MS <- prepared_data$meta_MS
 matrix_combo_ms_ns_drop <- prepared_data$matrix_combo_ms_ns_drop
 
-source("summarized_experiment.R")
 se_combo_drop_nieve <- summarized_experiment(matrix_combo_ms_ns_drop, meta_MS)
-
-source("run_model.R")
 ```
 
 
@@ -93,7 +93,7 @@ row_names <- c("Models", "ZI AIC", "ZI -ll", "ZI-df", "NB AIC", "NB -ll", "NB df
 rownames(fit_df) <- row_names
 
 # for (i in seq_along(model_definitions)) {
-for (i in list(1000)) {
+for (i in list(117)) {
   for (formula_v in list(NULL, (~pc_genes$gcc + pc_genes$length))) {
     name <- if (!is.null(formula_v)) paste(model_definitions[[i]]$name, "with_pc_genes", sep = "_") else model_definitions[[i]]$name
     title <- if (!is.null(formula_v)) paste(model_definitions[[i]]$title, "with pc genes", sep = " ") else model_definitions[[i]]$title
@@ -139,7 +139,7 @@ if (!dir.exists("./output")) {
 write.csv(combo_ModelCompare_drop_nieve_cohort, file = "./output/model_fiting_table_combo_drop_nieve_cohort_NEW.csv", row.names = TRUE)
 
 # TODO:
-# 4. Automatically highlight the model that is "best" -- based on what Greer said is the criteria.
+# Automatically highlight the model that is "best" -- based on what Greer said is the criteria.
 ```
 
 
