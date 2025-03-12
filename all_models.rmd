@@ -52,6 +52,43 @@ source("run_model.R")
 # Model definitions
 
 ```{r Model definitions}
+
+meta_ms_cols <- c(
+  "age_at_csf",
+  "sex",
+  "race",
+  "ethnicity",
+  "enhancing",
+  "csf_wbc",
+  "immunetherapyattimeoflp",
+  "coll_to_seq",
+  "percentzero",
+  "totaltranscripts",
+  "numnonzero",
+  "pleocytosis"
+)
+
+combinations <- list()
+formula_fragments <- list()
+sequence <- 1:length(meta_ms_cols)
+for (i in sequence) {
+  combination_matrix <- combn(meta_ms_cols, i, simplify = TRUE)
+  new_combinations <- split(combination_matrix, col(combination_matrix))
+  combinations <- c(combinations, new_combinations)
+}
+for (cmb in combinations) {
+  formula_fragments <- c(formula_fragments, list(reformulate(termlabels = paste0("se_combo_drop_nieve$", cmb))))
+}
+
+# TODO:
+# 1. Somehow store the list of columns used in the formula so that that can be used in naming later,
+# 2. Add the combination of the formulas WITH and WITHOUT the V that consists of the gcc and length from the pc_genes
+# 3. Adapt the model running code to use the dynamically formulated terms.
+# 4. Automatically highlight the model that is "best" -- based on what Greer said is the criteria.
+
+
+
+
 model_definitions <- list(
   # Crude Model (Model 1, univariate age)
   list(
