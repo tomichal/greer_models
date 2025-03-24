@@ -83,14 +83,20 @@ if (!dir.exists(output_folder_name)) {
 }
 output_file_path <- paste0(output_folder_name, "/model_comparisons.csv")
 
+is_counts_data_prepared <- FALSE
 
-# se <- read_csv('./input/summarized_experiment_with_quartiles.csv')
-
-source("functions.R")
-se <- summarized_experiment_with_quartiles(
-  "./input/meta_data_lazar.csv",
-  "./input/gene_count_lazar_1000.csv"
-)
+if (is_counts_data_prepared) {
+  se <- SummarizedExperiment(
+    assays = list(counts = read_csv('./input/some_already_prepared_counts_data_with_quartiles_etc.csv')),
+    colData = data.frame(read_chunk('./input/some_already_prepared_metadata.csv'))
+  )
+} else {
+  source("functions.R")
+  se <- summarized_experiment_with_quartiles(
+    "./input/meta_data_lazar.csv",
+    "./input/gene_count_lazar_1000.csv"
+  )
+}
 
 pc_genes <- read_csv('./input/pc_genes.csv') #this makes a dataframe of all the gene level info for only protein coding genes taken from biomart in Fall 2024
 ```
