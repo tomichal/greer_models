@@ -23,7 +23,7 @@ knitr::opts_chunk$set(echo = TRUE)
 
 ```{r load in MS Data}
 
-setwd("/Users/nihau/dev/r/greer_models")
+setwd("/")
 
 ms_counts <- read_csv("./data/gene_count_lazar_1000.csv")
 counts <- ms_counts %>%
