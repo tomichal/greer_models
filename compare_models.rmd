@@ -46,13 +46,13 @@ pc_genes <- read_csv('./input/pc_genes.csv') #this makes a dataframe of all the 
 
 ```{r Model Definitions}
 meta_data_cols <- c(
-  # "sex",
-  # "race",
-  # "ethnicity",
-  # "enhancing",
-  # "csf_wbc",
-  # "immunetherapyattimeoflp",
-  # "pleocytosis",
+  "sex",
+  "race",
+  "ethnicity",
+  "enhancing",
+  "csf_wbc",
+  "immunetherapyattimeoflp",
+  "pleocytosis",
   "quartile_age_at_csf",
   "quartile_coll_to_seq",
   "quartile_percentzero",
@@ -90,7 +90,7 @@ num_rows <- length(row_names)
 fit_df <- data.frame(matrix(ncol = 0, nrow = num_rows))
 rownames(fit_df) <- row_names
 
-for (i in list(1)) {
+for (i in list(100, 500, 1000)) {
   # for (i in seq_along(model_definitions)) {
   for (formula_v in list(NULL, (~pc_genes$gcc + pc_genes$length))) {
     title <- if (!is.null(formula_v)) paste(model_definitions[[i]]$title, "gcc + length", sep = " + ") else model_definitions[[i]]$title
