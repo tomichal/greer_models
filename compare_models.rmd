@@ -5,154 +5,10 @@ date: "2/13/2025"
 output: html_document
 ---
 
-#you will need to input your paths (1: all meta data in one file with the study id column label "study_id" 2: all raw count data in one file  3) Gene Info from Biomart (i have a csv made from "biomart_protein_coding_genes_withgeneinfo.tsv" that you can use if you dont have it already) in the first chunk#
-
-#Ensuring only data that has meta-data is included in the count data and adding missing values to data you want included in the models that have missing values
-```{r ensuring that only data in meta-data is included in count data -- ONLY USE IF YOU NEED THIS STEP }
-
-#load in your data, first file path is meta, second is count, third is protein coding gene info
-load_data <- function(metadata_filepath, counts_filepath, pc_genes_filepath) {
-  counts <- read_csv(counts_filepath) #this makes a count dataframe
-  counts <- counts %>%
-    as.data.frame() %>%
-    column_to_rownames(var = "...1") #this makes a new count dataframe with gene names as row names
-
-  meta_data <- read_csv(metadata_filepath) #this makes a metadata dataframe
-
-  columns_to_keep <- meta_data$study_id #this give you the sampleids in your meta data as a vector 
-
-  subset_data_drop <- counts[, colnames(counts) %in% columns_to_keep] #this subsets the count data so that only sampleids in the meta data are kept in the count data 
-
-  matrix_predrop <- as.matrix(subset_data_drop) #this makes count dataframe (with only meta-data sampleid) a count matric
-
-  pc_genes <- read_csv(pc_genes_filepath) #this makes a dataframe of all the gene level info for only protein coding genes taken from biomart in Fall 2024
-
-  list(
-    # counts = counts,
-    meta_data = meta_data,
-    matrix_predrop = matrix_predrop,
-    pc_genes = pc_genes
-  )   #this is just lists what me made so we can access these things later when we run the function
-}
-
-prepare_data <- function(matrix_predrop, meta_data) {
-  #dropping all zero genes 
-  row_sums_pre <- rowSums(matrix_predrop) #makes a vectors of the rowSums (total gene counts)
-  zero_row_names_combo <- rownames(matrix_predrop)[row_sums_pre == 0] #makes a vector of the gene names that have total zero counts
-  matrix_after_drop <- matrix_predrop[rowSums(matrix_predrop) != 0,] #makes a count matrix after dropping all zero gene counts
-
-  #checking if there are zero sum rows
-  zero_row_names_after_drop <- rownames(matrix_after_drop)[rowSums(matrix_after_drop) == 0]
-  print(zero_row_names_after_drop)
-
-
-  #below will add a "missing value" to any variable you want to include in the models that has missing data
-  #print(addmargins(table(meta_data$pleocytosis)))
-  #meta_MS$pleocytosis[is.na(meta_data$pleocytosis)] <- 3
-
-  #print(addmargins(table(meta_data$enhancing)))
-  #meta_MS$enhancing[is.na(meta_data$enhancing)] <- "Missing"
-
-  #print(addmargins(table(meta_data$immunetherapyattimeoflp)))
-  #meta_MS$immunetherapyattimeoflp[is.na(meta_data$immunetherapyattimeoflp)] <- 2
-
-  #Return the processed data
-  list(
-    matrix_after_drop = matrix_after_drop,
-    meta_data = meta_data
-  )
-}
-
-```
-
-#Making a Summarized Experiment Object and adding quantile of continuous data to summarized experiment
-```{r making a summarized experiment object}
-summarized_experiment_with_quartiles <- function(matrix_after_drop, meta_data) {
-
-  categorize_quartiles <- function(value, quartiles) {
-    if (value <= quartiles[2]) {
-      return("Q1")
-    } else if (value <= quartiles[3]) {
-      return("Q2")
-    } else if (value <= quartiles[4]) {
-      return("Q3")
-    } else {
-      return("Q4")
-    }
-  }
-
-  se <- SummarizedExperiment(
-    assays = list(counts = matrix_after_drop), colData = data.frame(meta_data)
-  )
-
-  for (col in  c(
-    "totaltranscripts",
-    "numnonzero",
-    "coll_to_seq",
-    "age_at_csf",
-    "percentzero"
-  )) {
-    quartile_name <- paste0("quartile_", col)
-    se[[quartile_name]] <- sapply(
-      se[[col]],
-      categorize_quartiles,
-
-      quartiles = quantile(se[[col]], probs = c(0, 0.25, 0.5, 0.75, 1))
-    )
-  }
-
-  return(se)
-}
-```
-
-```{r Functions DO NOT TOUCH}
-run_model <- function(Y, xFormula, maxIterOptimize = 400, V = NULL) {
-
-  run_zinbFit <- function(zeroInflation) {
-    zinbFit(
-      Y,
-      K = 2,
-      X = if (is.null(V)) {
-        model.matrix(
-          xFormula,
-          data = colData(se)
-        )
-      } else {
-        model.matrix(
-          xFormula,
-          data = colData(se),
-          V = V
-        )
-      },
-      BPPARAM = BiocParallel::SerialParam(),
-      maxiter.optimize = maxIterOptimize,
-      verbose = FALSE,
-      zeroinflation = zeroInflation
-    )
-  }
-
-  #ZINB
-  zinb_model <- run_zinbFit(zeroInflation = TRUE)
-  ZI_ll <- loglik(zinb_model, zinbSim(zinb_model)$counts)
-  ZI_aic <- zinbAIC(zinb_model, t(assay(se)))
-  ZI_df <- nParams(zinb_model)
-
-  #neg binomial crude mdoel
-  nb_model <- run_zinbFit(zeroInflation = FALSE)
-  NB_ll <- loglik(nb_model, zinbSim(nb_model)$counts)
-  NB_aic <- zinbAIC(nb_model, t(assay(se)))
-  NB_df <- nParams(nb_model)
-
-  list(
-    ZI_ll = ZI_ll,
-    ZI_aic = ZI_aic,
-    ZI_df = ZI_df,
-    NB_ll = NB_ll,
-    NB_aic = NB_aic,
-    NB_df = NB_df
-  )
-}
-```
+# You will need to input your paths
+# 1: All meta data in one file with the study id column label "study_id"
+# 2: All raw count data in one file
+# 3: Gene Info from Biomart (i have a csv made from "biomart_protein_coding_genes_withgeneinfo.tsv" that you can use if you dont have it already) in the first chunk
 
 
 ```{r Initialize}
@@ -168,7 +24,7 @@ library(dplyr)
 
 knitr::opts_chunk$set(echo = TRUE)
 
-#set working directory to be the folder where your data is and where you want the output to go 
+#set working directory to be the folder where your data is and where you want the output to go
 setwd("~/dev/r/greer_models")
 
 output_folder_name <- './output'
@@ -178,18 +34,13 @@ if (!dir.exists(output_folder_name)) {
 }
 output_file_path <- paste0(output_folder_name, "/model_comparisons.csv")
 
-loaded_data <- load_data(
-  "./input/meta_data_lazar.csv",  #meta data
-  "./input/gene_count_lazar_1000.csv", #count matrix
-  "./input/pc_genes.csv"  #pc gene info 
+source("functions.R")
+
+se <- summarized_experiment_with_quartiles(
+  "./input/meta_data_lazar.csv",
+  "./input/gene_count_lazar_1000.csv"
 )
-meta_data <- loaded_data$meta_data
-matrix_predrop <- loaded_data$matrix_predrop
-pc_genes <- loaded_data$pc_genes
-
-prepared_data <- prepare_data(matrix_predrop, meta_data)
-
-se <- summarized_experiment_with_quartiles(prepared_data$matrix_after_drop, prepared_data$meta_data)
+pc_genes <- read_csv('./input/pc_genes.csv') #this makes a dataframe of all the gene level info for only protein coding genes taken from biomart in Fall 2024
 ```
 
 
@@ -278,7 +129,12 @@ rownames(results)[1] <- "Difference in LL"
 model_comparisons <- rbind(fit_df, results)
 
 model_comparisons <- model_comparisons[,
-  order(as.numeric(model_comparisons["ZI AIC",]))
+  order(
+    pmin(
+      as.numeric(model_comparisons["ZI AIC",]),
+      as.numeric(model_comparisons["NB AIC",])
+    )
+  )
 ]
 
 write.csv(model_comparisons, file = output_file_path, row.names = TRUE)
