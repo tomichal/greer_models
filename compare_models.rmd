@@ -1,5 +1,5 @@
 ---
-title: "Model Fitting Combo_nieve_cohort"
+title: "Model Fitting by Michal"
 author: "Greer Waldrop"
 date: "2/13/2025"
 output: html_document
