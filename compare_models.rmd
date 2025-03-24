@@ -13,7 +13,7 @@ output: html_document
 #load in your data, first file path is meta, second is count, third is protein coding gene info
 load_data <- function(metadata_filepath, counts_filepath, pc_genes_filepath) {
   counts <- read_csv(counts_filepath) #this makes a count dataframe
-  counts <- counts %>% 
+  counts <- counts %>%
     as.data.frame() %>%
     column_to_rownames(var = "...1") #this makes a new count dataframe with gene names as row names
 
@@ -67,7 +67,7 @@ prepare_data <- function(matrix_predrop, meta_data) {
 
 #Making a Summarized Experiment Object and adding quantile of continuous data to summarized experiment
 ```{r making a summarized experiment object}
-summarized_experiment <- function(matrix_combo_ms_ns_drop, meta_MS) {
+summarized_experiment_with_quartiles <- function(matrix_after_drop, meta_data) {
 
   categorize_quartiles <- function(value, quartiles) {
     if (value <= quartiles[2]) {
@@ -81,40 +81,28 @@ summarized_experiment <- function(matrix_combo_ms_ns_drop, meta_MS) {
     }
   }
 
-  se_combo_drop_nieve <- SummarizedExperiment(
-    assays = list(counts = matrix_combo_ms_ns_drop), colData = data.frame(meta_MS)
+  se <- SummarizedExperiment(
+    assays = list(counts = matrix_after_drop), colData = data.frame(meta_data)
   )
 
-  #Add that quartile variable to the Summarized Experiment object
-  se_combo_drop_nieve$Quartiletotal <- sapply(
-    se_combo_drop_nieve$totaltranscripts,
-    categorize_quartiles,
+  for (col in  c(
+    "totaltranscripts",
+    "numnonzero",
+    "coll_to_seq",
+    "age_at_csf",
+    "percentzero"
+  )) {
+    quartile_name <- paste0("quartile_", col)
+    se[[quartile_name]] <- sapply(
+      se[[col]],
+      categorize_quartiles,
 
-    #Make Quartiles of Number of Non Zero Genes and Total Transcripts and time from collection to sequencing just for ease of model convering
-    quartiles = quantile(se_combo_drop_nieve$totaltranscripts, probs = c(0, 0.25, 0.5, 0.75, 1))
-  )
+      quartiles = quantile(se[[col]], probs = c(0, 0.25, 0.5, 0.75, 1))
+    )
+  }
 
-  #Add that quartile variable to the Summarized Experiment object
-  se_combo_drop_nieve$Quartilenonzero <- sapply(
-    se_combo_drop_nieve$numnonzero,
-    categorize_quartiles,
-
-    #numnonzero quartiles
-    quartiles = quantile(se_combo_drop_nieve$numnonzero, probs = c(0, 0.25, 0.5, 0.75, 1))
-  )
-
-  #Add that quartile variable to the Summarized Experiment object
-  se_combo_drop_nieve$Quartilefreezer <- sapply(
-    se_combo_drop_nieve$coll_to_seq,
-    categorize_quartiles,
-
-    #freezer time quartiles
-    quartiles = quantile(se_combo_drop_nieve$coll_to_seq, probs = c(0, 0.25, 0.5, 0.75, 1))
-  )
-
-  return(se_combo_drop_nieve)
+  return(se)
 }
-
 ```
 
 ```{r Functions DO NOT TOUCH}
@@ -181,7 +169,10 @@ library(dplyr)
 knitr::opts_chunk$set(echo = TRUE)
 
 #set working directory to be the folder where your data is and where you want the output to go 
-setwd("~/")
+setwd("~/dev/r/greer_models")
+
+output_folder_name <- './output'
+output_file_path <- paste0(output_folder_name, "/model_comparisons.csv")
 
 loaded_data <- load_data(
   "./input/meta_data_lazar.csv",  #meta data
@@ -192,41 +183,38 @@ meta_data <- loaded_data$meta_data
 matrix_predrop <- loaded_data$matrix_predrop
 pc_genes <- loaded_data$pc_genes
 
-prepared_data <- prepare_data(matrix_ms_predrop, meta_MS)
+prepared_data <- prepare_data(matrix_predrop, meta_data)
 
-meta_MS <- prepared_data$meta_MS
-matrix_combo_ms_ns_drop <- prepared_data$matrix_combo_ms_ns_drop
-
-se_combo_drop_nieve <- summarized_experiment(matrix_combo_ms_ns_drop, meta_MS)
+se <- summarized_experiment_with_quartiles(prepared_data$matrix_after_drop, prepared_data$meta_data)
 ```
 
 
 ```{r Model Definitions}
-meta_ms_cols <- c(
-  "age_at_csf",
-  "sex",
-  "race",
-  "ethnicity",
-  "enhancing",
-  "csf_wbc",
-  "immunetherapyattimeoflp",
-  "coll_to_seq",
-  "percentzero",
-  "totaltranscripts",
-  "numnonzero",
-  "pleocytosis"
+meta_data_cols <- c(
+  # "sex",
+  # "race",
+  # "ethnicity",
+  # "enhancing",
+  # "csf_wbc",
+  # "immunetherapyattimeoflp",
+  # "pleocytosis",
+  "quartile_age_at_csf",
+  "quartile_coll_to_seq",
+  "quartile_percentzero",
+  "quartile_totaltranscripts",
+  "quartile_numnonzero"
 )
 
 combinations <- list()
 model_definitions <- list()
-sequence <- 1:length(meta_ms_cols)
+sequence <- 1:length(meta_data_cols)
 for (i in sequence) {
-  combination_matrix <- combn(meta_ms_cols, i, simplify = TRUE)
+  combination_matrix <- combn(meta_data_cols, i, simplify = TRUE)
   new_combinations <- split(combination_matrix, col(combination_matrix))
   combinations <- c(combinations, new_combinations)
 }
 for (attrs in combinations) {
-  formula_x <- reformulate(termlabels = paste0("se_combo_drop_nieve$", attrs))
+  formula_x <- reformulate(termlabels = paste0("se$", attrs))
   model_definitions <- c(
     model_definitions,
     list(
@@ -247,14 +235,14 @@ num_rows <- length(row_names)
 fit_df <- data.frame(matrix(ncol = 0, nrow = num_rows))
 rownames(fit_df) <- row_names
 
-# for (i in list(1, 2)) {
-for (i in seq_along(model_definitions)) {
+for (i in list(1)) {
+  # for (i in seq_along(model_definitions)) {
   for (formula_v in list(NULL, (~pc_genes$gcc + pc_genes$length))) {
     title <- if (!is.null(formula_v)) paste(model_definitions[[i]]$title, "gcc + length", sep = " + ") else model_definitions[[i]]$title
     formula_x <- model_definitions[[i]]$formula_x
 
     result <- run_model(
-      Y = se_combo_drop_nieve,
+      Y = se,
       xFormula = formula_x,
       maxIterOptimize = 400,
       V = formula_v
@@ -286,8 +274,8 @@ rownames(result_df_combo_drop_nieve_cohort)[1] <- "Difference in LL"
 combo_ModelCompare_drop_nieve_cohort <- rbind(fit_df, result_df_combo_drop_nieve_cohort)
 
 # Create './output' folder if it does not exist
-if (!dir.exists("./output")) {
-  dir.create("./output", showWarnings = FALSE)
+if (!dir.exists(output_folder_name)) {
+  dir.create(output_folder_name, showWarnings = FALSE)
 }
 
 combo_ModelCompare_drop_nieve_cohort <- combo_ModelCompare_drop_nieve_cohort[,
