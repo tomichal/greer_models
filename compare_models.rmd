@@ -271,18 +271,18 @@ colnames(results) <- colnames(fit_df)  # Match column names
 rownames(results)[1] <- "Difference in LL"
 
 # Bind the new row (differce in the negative 2 ll) to the original DataFrame
-combo_ModelCompare_drop_nieve_cohort <- rbind(fit_df, results)
+model_comparisons <- rbind(fit_df, results)
 
 # Create './output' folder if it does not exist
 if (!dir.exists(output_folder_name)) {
   dir.create(output_folder_name, showWarnings = FALSE)
 }
 
-combo_ModelCompare_drop_nieve_cohort <- combo_ModelCompare_drop_nieve_cohort[,
-  order(as.numeric(combo_ModelCompare_drop_nieve_cohort["ZI AIC",]))
+model_comparisons <- model_comparisons[,
+  order(as.numeric(model_comparisons["ZI AIC",]))
 ]
 
-write.csv(combo_ModelCompare_drop_nieve_cohort, file = "./output/model_fiting_table_combo_drop_nieve_cohort_NEW.csv", row.names = TRUE)
+write.csv(model_comparisons, file = "./output/model_fiting_table_combo_drop_nieve_cohort_NEW.csv", row.names = TRUE)
 
 ```
 
