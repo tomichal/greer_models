@@ -172,6 +172,10 @@ knitr::opts_chunk$set(echo = TRUE)
 setwd("~/dev/r/greer_models")
 
 output_folder_name <- './output'
+# Create './output' folder if it does not exist
+if (!dir.exists(output_folder_name)) {
+  dir.create(output_folder_name, showWarnings = FALSE)
+}
 output_file_path <- paste0(output_folder_name, "/model_comparisons.csv")
 
 loaded_data <- load_data(
@@ -273,16 +277,11 @@ rownames(results)[1] <- "Difference in LL"
 # Bind the new row (differce in the negative 2 ll) to the original DataFrame
 model_comparisons <- rbind(fit_df, results)
 
-# Create './output' folder if it does not exist
-if (!dir.exists(output_folder_name)) {
-  dir.create(output_folder_name, showWarnings = FALSE)
-}
-
 model_comparisons <- model_comparisons[,
   order(as.numeric(model_comparisons["ZI AIC",]))
 ]
 
-write.csv(model_comparisons, file = "./output/model_fiting_table_combo_drop_nieve_cohort_NEW.csv", row.names = TRUE)
+write.csv(model_comparisons, file = output_file_path, row.names = TRUE)
 
 ```
 
