@@ -5,109 +5,68 @@ date: "2/13/2025"
 output: html_document
 ---
 
-#you will need to input your paths in the first chunk and in all the chunks for the models you need to input your data in the model matrix and then the last chuck you need to put the output path for the csv of the model fitting results; you will also need the tsv file of "biomart_protein_coding_genes_withgeneinfo.tsv" loaded into your working directory#
+#you will need to input your paths (1: all meta data in one file with the study id column label "study_id" 2: all raw count data in one file  3) Gene Info from Biomart (i have a csv made from "biomart_protein_coding_genes_withgeneinfo.tsv" that you can use if you dont have it already) in the first chunk#
 
-```{r Functions}
+#Ensuring only data that has meta-data is included in the count data and adding missing values to data you want included in the models that have missing values
+```{r ensuring that only data in meta-data is included in count data -- ONLY USE IF YOU NEED THIS STEP }
+
+#load in your data, first file path is meta, second is count, third is protein coding gene info
 load_data <- function(metadata_filepath, counts_filepath, pc_genes_filepath) {
-  ms_counts <- read_csv(counts_filepath)
-  counts <- ms_counts %>%
+  counts <- read_csv(counts_filepath) #this makes a count dataframe
+  counts <- counts %>% 
     as.data.frame() %>%
-    column_to_rownames(var = "...1")
+    column_to_rownames(var = "...1") #this makes a new count dataframe with gene names as row names
 
-  meta_MS <- read_csv(metadata_filepath)
+  meta_data <- read_csv(metadata_filepath) #this makes a metadata dataframe
 
-  columns_to_keep <- meta_MS$study_id
+  columns_to_keep <- meta_data$study_id #this give you the sampleids in your meta data as a vector 
 
-  subset_data_ms_drop <- counts[, colnames(counts) %in% columns_to_keep]
+  subset_data_drop <- counts[, colnames(counts) %in% columns_to_keep] #this subsets the count data so that only sampleids in the meta data are kept in the count data 
 
-  matrix_ms_predrop <- as.matrix(subset_data_ms_drop)
+  matrix_predrop <- as.matrix(subset_data_drop) #this makes count dataframe (with only meta-data sampleid) a count matric
 
-  pc_genes <- read_csv(pc_genes_filepath)
+  pc_genes <- read_csv(pc_genes_filepath) #this makes a dataframe of all the gene level info for only protein coding genes taken from biomart in Fall 2024
 
   list(
     # counts = counts,
-    meta_MS = meta_MS,
-    matrix_ms_predrop = matrix_ms_predrop,
+    meta_data = meta_data,
+    matrix_predrop = matrix_predrop,
     pc_genes = pc_genes
-  )
+  )   #this is just lists what me made so we can access these things later when we run the function
 }
 
-prepare_data <- function(matrix_ms_predrop, meta_MS) {
-  #dropping zero genes
-  row_sums_combo <- rowSums(matrix_ms_predrop)
-  zero_row_names_combo <- rownames(matrix_ms_predrop)[row_sums_combo == 0]
-  print(matrix_ms_predrop)
-  matrix_combo_ms_ns_drop <- matrix_ms_predrop[rowSums(matrix_ms_predrop) != 0,]
+prepare_data <- function(matrix_predrop, meta_data) {
+  #dropping all zero genes 
+  row_sums_pre <- rowSums(matrix_predrop) #makes a vectors of the rowSums (total gene counts)
+  zero_row_names_combo <- rownames(matrix_predrop)[row_sums_pre == 0] #makes a vector of the gene names that have total zero counts
+  matrix_after_drop <- matrix_predrop[rowSums(matrix_predrop) != 0,] #makes a count matrix after dropping all zero gene counts
 
   #checking if there are zero sum rows
-  row_sums_combo_drop <- rowSums(matrix_ms_predrop)
-  zero_row_names_combo_after_drop <- rownames(matrix_ms_predrop)[rowSums(matrix_ms_predrop) == 0]
-  print(zero_row_names_combo_after_drop)
+  zero_row_names_after_drop <- rownames(matrix_after_drop)[rowSums(matrix_after_drop) == 0]
+  print(zero_row_names_after_drop)
 
 
-  print(addmargins(table(meta_MS$pleocytosis)))
-  meta_MS$pleocytosis[is.na(meta_MS$pleocytosis)] <- 3
+  #below will add a "missing value" to any variable you want to include in the models that has missing data
+  #print(addmargins(table(meta_data$pleocytosis)))
+  #meta_MS$pleocytosis[is.na(meta_data$pleocytosis)] <- 3
 
-  print(addmargins(table(meta_MS$enhancing)))
-  meta_MS$enhancing[is.na(meta_MS$enhancing)] <- "Missing"
+  #print(addmargins(table(meta_data$enhancing)))
+  #meta_MS$enhancing[is.na(meta_data$enhancing)] <- "Missing"
 
-  print(addmargins(table(meta_MS$immunetherapyattimeoflp)))
-  meta_MS$immunetherapyattimeoflp[is.na(meta_MS$immunetherapyattimeoflp)] <- 2
+  #print(addmargins(table(meta_data$immunetherapyattimeoflp)))
+  #meta_MS$immunetherapyattimeoflp[is.na(meta_data$immunetherapyattimeoflp)] <- 2
 
-  # Return the processed data
+  #Return the processed data
   list(
-    matrix_combo_ms_ns_drop = matrix_combo_ms_ns_drop,
-    meta_MS = meta_MS
+    matrix_after_drop = matrix_after_drop,
+    meta_data = meta_data
   )
 }
 
-run_model <- function(Y, xFormula, maxIterOptimize = 400, V = NULL) {
+```
 
-  run_zinbFit <- function(zeroInflation) {
-    zinbFit(
-      Y,
-      K = 2,
-      X = if (is.null(V)) {
-        model.matrix(
-          xFormula,
-          data = colData(se_combo_drop_nieve)
-        )
-      } else {
-        model.matrix(
-          xFormula,
-          data = colData(se_combo_drop_nieve),
-          V = V
-        )
-      },
-      BPPARAM = BiocParallel::SerialParam(),
-      maxiter.optimize = maxIterOptimize,
-      verbose = FALSE,
-      zeroinflation = zeroInflation
-    )
-  }
-
-  #ZINB
-  zinb_nieve_cohort <- run_zinbFit(zeroInflation = TRUE)
-  ZI_ll <- loglik(zinb_nieve_cohort, zinbSim(zinb_nieve_cohort)$counts)
-  ZI_aic <- zinbAIC(zinb_nieve_cohort, t(assay(se_combo_drop_nieve)))
-  ZI_df <- nParams(zinb_nieve_cohort)
-
-  #neg binomial crude mdoel
-  nb_nieve_cohort <- run_zinbFit(zeroInflation = FALSE)
-  NB_ll <- loglik(nb_nieve_cohort, zinbSim(nb_nieve_cohort)$counts)
-  NB_aic <- zinbAIC(nb_nieve_cohort, t(assay(se_combo_drop_nieve)))
-  NB_df <- nParams(nb_nieve_cohort)
-
-  list(
-    ZI_ll = ZI_ll,
-    ZI_aic = ZI_aic,
-    ZI_df = ZI_df,
-    NB_ll = NB_ll,
-    NB_aic = NB_aic,
-    NB_df = NB_df
-  )
-}
-
+#Making a Summarized Experiment Object and adding quantile of continuous data to summarized experiment
+```{r making a summarized experiment object}
 summarized_experiment <- function(matrix_combo_ms_ns_drop, meta_MS) {
 
   categorize_quartiles <- function(value, quartiles) {
@@ -158,6 +117,55 @@ summarized_experiment <- function(matrix_combo_ms_ns_drop, meta_MS) {
 
 ```
 
+```{r Functions DO NOT TOUCH}
+run_model <- function(Y, xFormula, maxIterOptimize = 400, V = NULL) {
+
+  run_zinbFit <- function(zeroInflation) {
+    zinbFit(
+      Y,
+      K = 2,
+      X = if (is.null(V)) {
+        model.matrix(
+          xFormula,
+          data = colData(se)
+        )
+      } else {
+        model.matrix(
+          xFormula,
+          data = colData(se),
+          V = V
+        )
+      },
+      BPPARAM = BiocParallel::SerialParam(),
+      maxiter.optimize = maxIterOptimize,
+      verbose = FALSE,
+      zeroinflation = zeroInflation
+    )
+  }
+
+  #ZINB
+  zinb_model <- run_zinbFit(zeroInflation = TRUE)
+  ZI_ll <- loglik(zinb_model, zinbSim(zinb_model)$counts)
+  ZI_aic <- zinbAIC(zinb_model, t(assay(se)))
+  ZI_df <- nParams(zinb_model)
+
+  #neg binomial crude mdoel
+  nb_model <- run_zinbFit(zeroInflation = FALSE)
+  NB_ll <- loglik(nb_model, zinbSim(nb_model)$counts)
+  NB_aic <- zinbAIC(nb_model, t(assay(se)))
+  NB_df <- nParams(nb_model)
+
+  list(
+    ZI_ll = ZI_ll,
+    ZI_aic = ZI_aic,
+    ZI_df = ZI_df,
+    NB_ll = NB_ll,
+    NB_aic = NB_aic,
+    NB_df = NB_df
+  )
+}
+```
+
 
 ```{r Initialize}
 library(BiocParallel)
@@ -172,15 +180,16 @@ library(dplyr)
 
 knitr::opts_chunk$set(echo = TRUE)
 
-setwd("~/dev/r/greer_models")
+#set working directory to be the folder where your data is and where you want the output to go 
+setwd("~/")
 
 loaded_data <- load_data(
-  "./input/meta_data_lazar.csv",
-  "./input/gene_count_lazar_1000.csv",
-  "./input/pc_genes.csv"
+  "./input/meta_data_lazar.csv",  #meta data
+  "./input/gene_count_lazar_1000.csv", #count matrix
+  "./input/pc_genes.csv"  #pc gene info 
 )
-meta_MS <- loaded_data$meta_MS
-matrix_ms_predrop <- loaded_data$matrix_ms_predrop
+meta_data <- loaded_data$meta_data
+matrix_predrop <- loaded_data$matrix_predrop
 pc_genes <- loaded_data$pc_genes
 
 prepared_data <- prepare_data(matrix_ms_predrop, meta_MS)
