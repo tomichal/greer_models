@@ -266,12 +266,12 @@ row2 <- as.numeric(row2)
 # Perform subtraction, this will give you the difference in the -2 logliklihood wihch is the statistic which you could in theory run a LR test on but these models aren't nested so cant technically do it 
 result_row <- 2 * (row1 - row2)
 
-result_df_combo_drop_nieve_cohort <- as.data.frame(t(result_row))
-colnames(result_df_combo_drop_nieve_cohort) <- colnames(fit_df)  # Match column names
-rownames(result_df_combo_drop_nieve_cohort)[1] <- "Difference in LL"
+results <- as.data.frame(t(result_row))
+colnames(results) <- colnames(fit_df)  # Match column names
+rownames(results)[1] <- "Difference in LL"
 
 # Bind the new row (differce in the negative 2 ll) to the original DataFrame
-combo_ModelCompare_drop_nieve_cohort <- rbind(fit_df, result_df_combo_drop_nieve_cohort)
+combo_ModelCompare_drop_nieve_cohort <- rbind(fit_df, results)
 
 # Create './output' folder if it does not exist
 if (!dir.exists(output_folder_name)) {
