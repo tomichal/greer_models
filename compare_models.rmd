@@ -83,10 +83,15 @@ if (!dir.exists(output_folder_name)) {
 }
 output_file_path <- paste0(output_folder_name, "/model_comparisons.csv")
 
-
 source("functions.R")
-counts_with_metadata <- load_data("./input/meta_data_lazar.csv", "./input/gene_count_lazar_1000.csv")
+
+counts_with_metadata <- load_data(
+  "./input/meta_data_lazar.csv",
+  "./input/gene_count_lazar_1000.csv"
+)
+
 decorate_data <- FALSE
+
 if (decorate_data) {
   se <- summarized_experiment_with_quartiles(counts_with_metadata)
 } else {
@@ -146,8 +151,8 @@ num_rows <- length(row_names)
 fit_df <- data.frame(matrix(ncol = 0, nrow = num_rows))
 rownames(fit_df) <- row_names
 
-for (i in list(100, 500, 1000)) {
-  # for (i in seq_along(model_definitions)) {
+# for (i in list(100)) {
+for (i in seq_along(model_definitions)) {
   for (formula_v in list(NULL, (~pc_genes$gcc + pc_genes$length))) {
     title <- if (!is.null(formula_v)) paste(model_definitions[[i]]$title, "gcc + length", sep = " + ") else model_definitions[[i]]$title
     formula_x <- model_definitions[[i]]$formula_x
