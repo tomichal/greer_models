@@ -18,13 +18,6 @@ load_data <- function(metadata_filepath, counts_filepath) {
 
   matrix_predrop <- as.matrix(subset_data_drop) #this makes count dataframe (with only meta-data sampleid) a count matric
 
-  list(
-    meta_data = meta_data,
-    matrix_predrop = matrix_predrop
-  )   #this is just lists what me made so we can access these things later when we run the function
-}
-
-prepare_data <- function(meta_data, matrix_predrop) {
   #dropping all zero genes 
   row_sums_pre <- rowSums(matrix_predrop) #makes a vectors of the rowSums (total gene counts)
   zero_row_names_combo <- rownames(matrix_predrop)[row_sums_pre == 0] #makes a vector of the gene names that have total zero counts
@@ -33,7 +26,6 @@ prepare_data <- function(meta_data, matrix_predrop) {
   #checking if there are zero sum rows
   zero_row_names_after_drop <- rownames(matrix_after_drop)[rowSums(matrix_after_drop) == 0]
   print(zero_row_names_after_drop)
-
 
   #below will add a "missing value" to any variable you want to include in the models that has missing data
   #print(addmargins(table(meta_data$pleocytosis)))
@@ -47,15 +39,13 @@ prepare_data <- function(meta_data, matrix_predrop) {
 
   #Return the processed data
   list(
-    matrix_after_drop = matrix_after_drop,
-    meta_data = meta_data
+    meta_data = meta_data,
+    matrix_after_drop = matrix_after_drop
   )
 }
 
 #Making a Summarized Experiment Object and adding quantile of continuous data to summarized experiment
-summarized_experiment_with_quartiles <- function(metadata_file_path, count_matrix_file_path) {
-  loaded_data <- load_data(metadata_file_path, count_matrix_file_path)
-  prepared_data <- prepare_data(loaded_data$meta_data, loaded_data$matrix_predrop)
+summarized_experiment_with_quartiles <- function(counts_with_metadata) {
 
   categorize_quartiles <- function(value, quartiles) {
     if (value <= quartiles[2]) {
@@ -70,7 +60,8 @@ summarized_experiment_with_quartiles <- function(metadata_file_path, count_matri
   }
 
   se <- SummarizedExperiment(
-    assays = list(counts = prepared_data$matrix_after_drop), colData = data.frame(prepared_data$meta_data)
+    assays = list(counts = counts_with_metadata$matrix_after_drop),
+    colData = data.frame(counts_with_metadata$meta_data)
   )
 
   for (col in  c(
