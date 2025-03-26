@@ -123,12 +123,22 @@ meta_data_cols <- c(
 
 combinations <- list()
 model_definitions <- list()
-sequence <- 1:length(meta_data_cols)
+sequence <- 1:4
 for (i in sequence) {
   combination_matrix <- combn(meta_data_cols, i, simplify = TRUE)
   new_combinations <- split(combination_matrix, col(combination_matrix))
   combinations <- c(combinations, new_combinations)
 }
+
+For debugging, save all `combinations` to a CSV file, with each combination on its own row and each item in the combination in its own column
+combinations_matrix <- do.call(rbind, lapply(combinations, function(x) {
+  length_diff <- max(sequence) - length(x)
+  c(x, rep(NA, length_diff)) # Fill with NA to ensure all rows have the same length
+}))
+combinations_df <- as.data.frame(combinations_matrix)
+colnames(combinations_df) <- paste0("Attribute_", seq_len(ncol(combinations_df))) # Name columns dynamically
+write.csv(combinations_df, file = "./output/combinations.csv", row.names = FALSE)
+
 for (attrs in combinations) {
   formula_x <- reformulate(termlabels = paste0("se$", attrs))
   model_definitions <- c(
