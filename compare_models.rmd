@@ -74,7 +74,7 @@ library(dplyr)
 knitr::opts_chunk$set(echo = TRUE)
 
 #set working directory to be the folder where your data is and where you want the output to go
-setwd("~/dev/r/greer_models")
+setwd(".")
 
 output_folder_name <- './output'
 # Create './output' folder if it does not exist
@@ -87,10 +87,10 @@ source("functions.R")
 
 counts_with_metadata <- load_data(
   "./input/meta_data_lazar.csv",
-  "./input/gene_count_lazar_1000.csv"
+  "./input/gene_count_lazar.csv"
 )
 
-decorate_data_with_quartiles <- TRUE
+decorate_data_with_quartiles <- FALSE
 
 if (decorate_data_with_quartiles) {
   se <- summarized_experiment_with_quartiles(counts_with_metadata)
@@ -113,13 +113,22 @@ meta_data_cols <- c(
   "enhancing",
   "csf_wbc",
   "immunetherapyattimeoflp",
-  "pleocytosis",
-  "quartile_age_at_csf",
-  "quartile_coll_to_seq",
-  # "quartile_percentzero",
-  "quartile_totaltranscripts",
-  "quartile_numnonzero"
+  "pleocytosis"
 )
+
+if (decorate_data_with_quartiles) {
+  meta_data_cols <- c(
+    meta_data_cols,
+    c(
+      "quartile_age_at_csf",
+      "quartile_coll_to_seq",
+      # "quartile_percentzero",
+      "quartile_totaltranscripts",
+      "quartile_numnonzero"
+    )
+  )
+}
+
 
 combinations <- list()
 model_definitions <- list()
