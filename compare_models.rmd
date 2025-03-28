@@ -159,20 +159,54 @@ for (attrs in combinations) {
 row_names <- c("ZI AIC", "ZI -ll", "ZI-df", "NB AIC", "NB -ll", "NB df")
 num_rows <- length(row_names)
 fit_df <- data.frame(matrix(ncol = 0, nrow = num_rows))
+top_results <- list()
 rownames(fit_df) <- row_names
 
 # for (i in list(100)) {
 for (i in seq_along(model_definitions)) {
-  # for (formula_v in list(NULL, (~pc_genes$gcc + pc_genes$length))) {
-  title <- if (!is.null(formula_v)) paste(model_definitions[[i]]$title, "gcc + length", sep = " + ") else model_definitions[[i]]$title
-  formula_x <- model_definitions[[i]]$formula_x
-
   result <- run_model(
     Y = se,
-    xFormula = formula_x,
-    maxIterOptimize = 400,
-    V = formula_v
+    xFormula = model_definitions[[i]]$formula_x,
+    maxIterOptimize = 400
   )
+
+  top_results <- c(
+    top_results,
+    list(
+      list(
+        model_definition = model_definitions[[i]],
+        result = result
+      )
+    )
+  )
+
+}
+
+
+
+# Order top_results by the minimum of either result$ZI_aic or result$NB_aic
+top_results <- top_results[order(
+  sapply(top_results, function(x) {
+    min(x$result$ZI_aic, x$result$NB_aic)
+  })
+)]
+
+
+top_results <- top_results[1:15]
+
+for (model_result in top_results) {
+  model_definition <- model_result$model_definition
+  result <- model_result$result
+  title <- model_definitions[[i]]$title
+
+  title_with_pc_genes <- paste(model_definitions[[i]]$title, "gcc + length", sep = " + ")
+  result_with_pc_genes <- run_model(
+    Y = se,
+    xFormula = model_definition$formula_x,
+    maxIterOptimize = 400,
+    V = (~pc_genes$gcc + pc_genes$length)
+  )
+
   fit_df[[title]] <- c(
     result$ZI_aic,
     result$ZI_ll,
@@ -180,6 +214,15 @@ for (i in seq_along(model_definitions)) {
     result$NB_aic,
     result$NB_ll,
     result$NB_df
+  )
+
+  fit_df[[title_with_pc_genes]] <- c(
+    result_with_pc_genes$ZI_aic,
+    result_with_pc_genes$ZI_ll,
+    result_with_pc_genes$ZI_df,
+    result_with_pc_genes$NB_aic,
+    result_with_pc_genes$NB_ll,
+    result_with_pc_genes$NB_df
   )
 }
 
