@@ -162,8 +162,8 @@ fit_df <- data.frame(matrix(ncol = 0, nrow = num_rows))
 model_run_results <- list()
 rownames(fit_df) <- row_names
 
-for (i in list(100, 300, 200)) {
-  # for (i in seq_along(model_definitions)) {
+# for (i in list(100, 300, 200)) {
+for (i in seq_along(model_definitions)) {
   result <- run_model(
     Y = se,
     xFormula = model_definitions[[i]]$formula_x,
