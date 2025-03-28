@@ -90,9 +90,9 @@ counts_with_metadata <- load_data(
   "./input/gene_count_lazar_1000.csv"
 )
 
-decorate_data <- FALSE
+decorate_data_with_quartiles <- TRUE
 
-if (decorate_data) {
+if (decorate_data_with_quartiles) {
   se <- summarized_experiment_with_quartiles(counts_with_metadata)
 } else {
   se <- SummarizedExperiment(
@@ -155,51 +155,49 @@ for (attrs in combinations) {
 }
 ```
 
-```{r Running Models and Making Table for AIC and ll}
+```{r Run Models without the PC Genes and save the results ordered by the smallest of ZI AIC or NB AIC}
 row_names <- c("ZI AIC", "ZI -ll", "ZI-df", "NB AIC", "NB -ll", "NB df")
 num_rows <- length(row_names)
 fit_df <- data.frame(matrix(ncol = 0, nrow = num_rows))
-top_results <- list()
+model_run_results <- list()
 rownames(fit_df) <- row_names
 
-# for (i in list(100)) {
-for (i in seq_along(model_definitions)) {
+for (i in list(100, 300, 200)) {
+# for (i in seq_along(model_definitions)) {
   result <- run_model(
     Y = se,
     xFormula = model_definitions[[i]]$formula_x,
     maxIterOptimize = 400
   )
 
-  top_results <- c(
-    top_results,
-    list(
+  model_run_results <- c(
+          model_run_results,
+          list(
       list(
         model_definition = model_definitions[[i]],
         result = result
       )
     )
   )
-
 }
 
-
-
-# Order top_results by the minimum of either result$ZI_aic or result$NB_aic
-top_results <- top_results[order(
-  sapply(top_results, function(x) {
+# Order model run results by the minimum of either result$ZI_aic or result$NB_aic
+model_run_results <- model_run_results[order(
+  sapply(model_run_results, function(x) {
     min(x$result$ZI_aic, x$result$NB_aic)
   })
 )]
+```
+```{r Run the top results also using the PC Genes data to see if that helps}
 
+best_results <- model_run_results[1:min(15, length(model_run_results))]
 
-top_results <- top_results[1:15]
+for (model_run_result in best_results) {
+  model_definition <- model_run_result$model_definition
+  result <- model_run_result$result
+  title <- model_definition$title
 
-for (model_result in top_results) {
-  model_definition <- model_result$model_definition
-  result <- model_result$result
-  title <- model_definitions[[i]]$title
-
-  title_with_pc_genes <- paste(model_definitions[[i]]$title, "gcc + length", sep = " + ")
+  title_with_pc_genes <- paste(model_definition$title, "gcc + length", sep = " + ")
   result_with_pc_genes <- run_model(
     Y = se,
     xFormula = model_definition$formula_x,
@@ -225,7 +223,9 @@ for (model_result in top_results) {
     result_with_pc_genes$NB_df
   )
 }
+```
 
+```{r Save results to a CSV}
 row1 <- fit_df["ZI -ll",]
 row2 <- fit_df["NB -ll",]
 row1 <- as.numeric(row1)
@@ -241,6 +241,7 @@ rownames(results)[1] <- "Difference in LL"
 # Bind the new row (differce in the negative 2 ll) to the original DataFrame
 model_comparisons <- rbind(fit_df, results)
 
+# Order the model run results by the lesser of ZI AIC and NB AIC
 model_comparisons <- model_comparisons[,
   order(
     pmin(
