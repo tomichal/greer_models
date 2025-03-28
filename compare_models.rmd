@@ -109,14 +109,14 @@ pc_genes <- read_csv('./input/pc_genes.csv') #this makes a dataframe of all the 
 meta_data_cols <- c(
   "sex",
   "race",
-  "ethnicity",
+  # "ethnicity",
   "enhancing",
   "csf_wbc",
   "immunetherapyattimeoflp",
   "pleocytosis",
   "quartile_age_at_csf",
   "quartile_coll_to_seq",
-  "quartile_percentzero",
+  # "quartile_percentzero",
   "quartile_totaltranscripts",
   "quartile_numnonzero"
 )
@@ -130,7 +130,7 @@ for (i in sequence) {
   combinations <- c(combinations, new_combinations)
 }
 
-For debugging, save all `combinations` to a CSV file, with each combination on its own row and each item in the combination in its own column
+# For debugging, save all `combinations` to a CSV file, with each combination on its own row and each item in the combination in its own column
 combinations_matrix <- do.call(rbind, lapply(combinations, function(x) {
   length_diff <- max(sequence) - length(x)
   c(x, rep(NA, length_diff)) # Fill with NA to ensure all rows have the same length
